@@ -1,0 +1,40 @@
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  clippy-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain with Clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Install Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libasound2-dev libudev-dev xvfb
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Install mold linker
+        run: sudo apt-get install -y mold
+
+      - name: Run Tests
+        env:
+          CARGO_BUILD_JOBS: "2"
+          RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+        timeout-minutes: 30
+        run: |
+          xvfb-run --auto-servernum cargo test
