@@ -23,7 +23,7 @@ jobs:
         name: Install GUI and Wayland dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev pkg-config libsound2-dev
       - &install-rust
         name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
