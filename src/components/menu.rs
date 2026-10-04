@@ -29,13 +29,18 @@ impl Plugin for MenuPlugin {
 }
 
 mod gamemenu {
+    use bevy::color::palettes::{
+        basic::{BLACK, GRAY},
+        css::{CORAL, DARK_BLUE, DARK_GREY, LIGHT_GREY},
+    };
     use bevy::prelude::*;
-    use bevy::color::palettes::basic::GRAY;
 
     use crate::{
         components::menu::{
-            GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_OUTLINE, MENU_BTN_RADIUS, MENU_BTN_WIDTH,
-        }, create_btn, create_btn_text, create_node,
+            GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_OUTLINE, MENU_BTN_RADIUS,
+            MENU_BTN_WIDTH,
+        },
+        create_btn, create_btn_text, create_node,
     };
 
     #[derive(Component)]
@@ -47,11 +52,19 @@ mod gamemenu {
         Level,
     }
 
+    const NORMAL_TEXT: Color = Color::Srgba(BLACK);
+    const NORMAL_BG: Color = Color::Srgba(LIGHT_GREY);
+    const HOVER_TEXT: Color = Color::Srgba(DARK_BLUE);
+    const HOVER_BG: Color = Color::Srgba(DARK_GREY);
+    const PRESSED_TEXT: Color = Color::Srgba(CORAL);
+    const PRESSED_BG: Color = Color::Srgba(GRAY);
+
     pub struct GameMenuPlugin;
 
     impl Plugin for GameMenuPlugin {
         fn build(&self, app: &mut App) {
-            app.add_systems(OnEnter(GameState::Menu), setup_gamemenu);
+            app.add_systems(OnEnter(GameState::Menu), setup_gamemenu)
+                .add_systems(Update, (button_system, button_action).chain());
         }
     }
 
@@ -86,8 +99,61 @@ mod gamemenu {
                 MENU_BTN_RADIUS
             ),
             BorderColor::all(MENU_BTN_OUTLINE),
-            BackgroundColor(Color::Srgba(GRAY)),
+            BackgroundColor(NORMAL_BG),
             children![(create_btn_text!(t))],
         )
+    }
+
+    fn button_system(
+        mut btn_query: Query<
+            (
+                &Interaction,
+                &mut BackgroundColor,
+                &mut BorderColor,
+                &Children,
+            ),
+            (Changed<Interaction>, With<Button>),
+        >,
+        mut text_query: Query<&mut TextColor>,
+    ) {
+        for (interaction, mut bg_color, _border_color, children) in &mut btn_query {
+            let mut text_color = text_query.get_mut(children[0]).unwrap();
+
+            if *interaction == Interaction::Pressed {
+                *text_color = TextColor(PRESSED_TEXT);
+                *bg_color = BackgroundColor(PRESSED_BG);
+            }
+            if *interaction == Interaction::Hovered {
+                *text_color = TextColor(HOVER_TEXT);
+                *bg_color = BackgroundColor(HOVER_BG);
+            }
+            if *interaction == Interaction::None {
+                *text_color = TextColor(NORMAL_TEXT);
+                *bg_color = BackgroundColor(NORMAL_BG);
+            }
+        }
+    }
+
+    fn button_action(
+        mut btn_query: Query<(&Interaction, &MenuBtn), (Changed<Interaction>, With<Button>)>,
+        mut game_state: ResMut<NextState<GameState>>,
+    ) {
+        for (interaction, btn) in &mut btn_query {
+            if *interaction == Interaction::Pressed {
+                match btn {
+                    _ => {}
+                }
+            }
+
+            if *interaction == Interaction::Hovered {
+                match btn {
+                    _ => {}
+                }
+            }
+
+            if *interaction == Interaction::None {
+                game_state.reset();
+            }
+        }
     }
 }
