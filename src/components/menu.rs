@@ -24,7 +24,8 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
-            .add_plugins(gamemenu::GameMenuPlugin);
+            .add_plugins(gamemenu::GameMenuPlugin)
+            .add_plugins(inventorymenu::InventoryMenuPlugin);
     }
 }
 
@@ -38,7 +39,7 @@ mod gamemenu {
     use crate::{
         components::menu::{
             GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_OUTLINE, MENU_BTN_RADIUS,
-            MENU_BTN_WIDTH,
+   MENU_BTN_WIDTH,
         },
         create_btn, create_btn_text, create_node,
     };
@@ -50,6 +51,12 @@ mod gamemenu {
         Home,
         Upgrade,
         Level,
+    }
+    #[derive(Component, Debug, Default, Clone, Copy, Eq, PartialEq)]
+    pub enum MenuBtnActive {
+        Active,
+        #[default]
+        Inactive
     }
 
     const NORMAL_TEXT: Color = Color::Srgba(BLACK);
@@ -63,7 +70,7 @@ mod gamemenu {
 
     impl Plugin for GameMenuPlugin {
         fn build(&self, app: &mut App) {
-            app.add_systems(OnEnter(GameState::Menu), setup_gamemenu)
+            app.add_systems(/*OnEnter(GameState::Menu)*/ Startup, setup_gamemenu)
                 .add_systems(Update, (button_system, button_action).chain());
         }
     }
@@ -72,19 +79,19 @@ mod gamemenu {
         let gamemenu_node = create_node!(5.0, 5.0, 85.0, Some(5.0), 90.0, 10.0);
 
         cmds.spawn((
-            DespawnOnExit(GameState::Menu),
+            // DespawnOnExit(GameState::Menu),
             gamemenu_node,
             // BackgroundColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
             Children::spawn(SpawnIter(
                 [
-                    ("SHOP", MenuBtn::Shop),
-                    ("INV", MenuBtn::Inventory),
-                    ("MENU", MenuBtn::Home),
-                    ("UPGRADE", MenuBtn::Upgrade),
-                    ("LEVEL", MenuBtn::Level),
+                    ("SHOP", MenuBtn::Shop, MenuBtnActive::default()),
+                    ("INV", MenuBtn::Inventory, MenuBtnActive::default()),
+                    ("MENU", MenuBtn::Home, MenuBtnActive::Active),
+                    ("UPGRADE", MenuBtn::Upgrade, MenuBtnActive::default()),
+                    ("LEVEL", MenuBtn::Level, MenuBtnActive::default()),
                 ]
                 .into_iter()
-                .map(|(t, comp)| (button(String::from(t)), comp)),
+                .map(|(t, comp, active)| (button(String::from(t)), comp, active)),
             )),
         ));
     }
@@ -111,26 +118,47 @@ mod gamemenu {
                 &Interaction,
                 &mut BackgroundColor,
                 &mut BorderColor,
+                &mut MenuBtnActive,
                 &Children,
             ),
             (Changed<Interaction>, With<Button>),
         >,
         mut text_query: Query<&mut TextColor>,
     ) {
-        for (interaction, mut bg_color, _border_color, children) in &mut btn_query {
+        for (interaction, mut bg_color, _border_color, mut active, children) in &mut btn_query {
             let mut text_color = text_query.get_mut(children[0]).unwrap();
 
-            if *interaction == Interaction::Pressed {
-                *text_color = TextColor(PRESSED_TEXT);
-                *bg_color = BackgroundColor(PRESSED_BG);
-            }
-            if *interaction == Interaction::Hovered {
-                *text_color = TextColor(HOVER_TEXT);
-                *bg_color = BackgroundColor(HOVER_BG);
-            }
-            if *interaction == Interaction::None {
-                *text_color = TextColor(NORMAL_TEXT);
-                *bg_color = BackgroundColor(NORMAL_BG);
+            if *active == MenuBtnActive::Inactive {
+
+                if *interaction == Interaction::Pressed {
+                    *text_color = TextColor(PRESSED_TEXT);
+                    *bg_color = BackgroundColor(PRESSED_BG);
+                    *active = MenuBtnActive::Active;
+                    // println!("Pressed: Active: {:?}", active.clone());
+                }
+                if *interaction == Interaction::Hovered {
+                    *text_color = TextColor(HOVER_TEXT);
+                    *bg_color = BackgroundColor(HOVER_BG);
+                }
+                if *interaction == Interaction::None {
+                    *text_color = TextColor(NORMAL_TEXT);
+                    *bg_color = BackgroundColor(NORMAL_BG);
+                    *active = MenuBtnActive::default();
+                    // println!("None: Active: {:?}", active.clone());
+                }
+
+            } else {
+
+                if *interaction == Interaction::Pressed {
+                    *active = MenuBtnActive::default();
+                    // println!("Pressed: Active: {:?}", active.clone());
+                }
+
+                if *interaction == Interaction::None {
+                    *text_color = TextColor(PRESSED_TEXT);
+                    *bg_color = BackgroundColor(PRESSED_BG);
+                }
+
             }
         }
     }
@@ -143,7 +171,12 @@ mod gamemenu {
         for (interaction, btn) in &mut btn_query {
             if *interaction == Interaction::Pressed {
                 match btn {
-                    _ => {}
+                    MenuBtn::Inventory => {
+                        game_state.set(GameState::Inventory);
+                    }
+                    _ => {
+                        game_state.set(GameState::default());
+                    }
                 }
             }
 
@@ -157,5 +190,32 @@ mod gamemenu {
                 game_state.reset();
             }
         }
+    }
+}
+
+mod inventorymenu {
+    use bevy::prelude::*;
+    
+    use crate::{components::menu::GameState, create_node};
+
+    #[derive(Debug)]
+    pub struct InventoryMenuPlugin;
+
+    impl Plugin for InventoryMenuPlugin {
+        fn build(&self, app: &mut App) {
+            app.add_systems(OnEnter(GameState::Inventory), setup_inventory_menu);
+        }
+    }
+
+    fn setup_inventory_menu(
+        mut cmds: Commands,
+    ) {
+
+        let inventorymenu_node = create_node!(15.0, 15.0, 10.0, Some(20.0), 70.0, 70.0);
+        cmds.spawn((
+                DespawnOnExit(GameState::Inventory),
+                inventorymenu_node,
+                BackgroundColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
+        ));
     }
 }
