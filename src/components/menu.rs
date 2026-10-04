@@ -104,6 +104,7 @@ mod gamemenu {
         )
     }
 
+    #[allow(clippy::type_complexity)]
     fn button_system(
         mut btn_query: Query<
             (
@@ -134,6 +135,7 @@ mod gamemenu {
         }
     }
 
+    #[allow(clippy::match_single_binding)]
     fn button_action(
         mut btn_query: Query<(&Interaction, &MenuBtn), (Changed<Interaction>, With<Button>)>,
         mut game_state: ResMut<NextState<GameState>>,
