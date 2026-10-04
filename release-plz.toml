@@ -1,3 +1,4 @@
 [workspace]
 publish = false
 semver_check = true
+git_only = true
