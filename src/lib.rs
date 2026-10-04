@@ -7,5 +7,12 @@ pub mod components {
     pub mod size;
 }
 
+pub mod util {
+    pub mod macros;
+}
+
 #[allow(unused_imports)]
 use components::{cam::*, enemy::*, level::*, menu::*, player::*, size::*};
+
+#[allow(unused_imports)]
+use util::macros::*;
