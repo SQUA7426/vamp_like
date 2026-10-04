@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::color::palettes::css::RED;
+use bevy::color::palettes::css::BLUE_VIOLET;
 
 use crate::components::size::Size;
 #[allow(unused)]
@@ -42,7 +42,7 @@ fn player_setup(
     let player = Player::new("Anton".to_string());
     cmds.spawn((
             Mesh2d(meshes.add(Circle::new(24.0))),
-            MeshMaterial2d(materials.add(Color::from(RED))),
+            MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
             Transform::from_xyz(player.pos.x, player.pos.y, 100.0),
             player,
     ));
