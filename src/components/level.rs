@@ -4,6 +4,7 @@ use bevy::{
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
 };
 
+#[derive(Debug)]
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {

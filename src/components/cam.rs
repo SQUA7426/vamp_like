@@ -5,6 +5,7 @@ use crate::components::player::Player;
 #[derive(Resource)]
 pub struct DecayRate(f32);
 
+#[derive(Debug)]
 pub struct CamPlugin;
 
 impl Plugin for CamPlugin {
@@ -17,7 +18,7 @@ impl Plugin for CamPlugin {
 fn setup_cam(mut cmds: Commands) {
     cmds.insert_resource(DecayRate(2.0));
     cmds.spawn((
-            Camera2d::default(),
+            Camera2d,
             Camera {
                 order: 1,
                 ..default()
@@ -41,4 +42,20 @@ fn update_cam(
 
     cam.translation
         .smooth_nudge(&direction, decay_rate, delta_time);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cam_plugin() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            CamPlugin,
+        ))
+        .update();
+        assert!(app.is_plugin_added::<CamPlugin>());
+    }
 }

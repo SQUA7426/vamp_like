@@ -6,4 +6,5 @@ pub mod components {
     pub mod size;
 }
 
+#[allow(unused_imports)]
 use components::{cam::*, level::*, menu::*, player::*, size::*};

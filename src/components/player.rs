@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy::color::palettes::css::RED;
 
 use crate::components::size::Size;
-
-#[derive(Component)]
+#[allow(unused)]
+#[derive(Component, Debug)]
 pub struct Player {
     name: String,
     health: f32,
@@ -13,9 +13,9 @@ pub struct Player {
 }
 
 impl Player {
-    fn new(name: String) -> Self {
+    fn new(player_name: String) -> Self {
         Self {
-            name: name,
+            name: player_name,
             speed: 100.0,
             health: 100.0,
             size: Size::default(),
@@ -24,6 +24,7 @@ impl Player {
     }
 }
 
+#[derive(Debug)]
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {

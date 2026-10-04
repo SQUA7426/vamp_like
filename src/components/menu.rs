@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+#[derive(Debug)]
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
