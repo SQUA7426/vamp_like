@@ -1,3 +1,4 @@
+use bevy::color::palettes::basic::BLACK;
 use bevy::prelude::*;
 
 #[derive(States, Clone, Copy, Debug, Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -14,7 +15,8 @@ pub enum GameState {
 const MENU_BTN_HEIGHT: f32 = 100.0;
 const MENU_BTN_WIDTH: f32 = 20.0;
 const MENU_BTN_MARGIN: f32 = 0.0;
-const MENU_BTN_RADIUS: f32 = 10.0;
+const MENU_BTN_RADIUS: f32 = 20.0;
+const MENU_BTN_OUTLINE: Color = Color::Srgba(BLACK);
 
 #[derive(Debug)]
 pub struct MenuPlugin;
@@ -28,13 +30,12 @@ impl Plugin for MenuPlugin {
 
 mod gamemenu {
     use bevy::prelude::*;
+    use bevy::color::palettes::basic::GRAY;
 
     use crate::{
         components::menu::{
-            GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_RADIUS,
-            MENU_BTN_WIDTH
-        },
-        create_btn, create_btn_text, create_node,
+            GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_OUTLINE, MENU_BTN_RADIUS, MENU_BTN_WIDTH,
+        }, create_btn, create_btn_text, create_node,
     };
 
     #[derive(Component)]
@@ -60,7 +61,7 @@ mod gamemenu {
         cmds.spawn((
             DespawnOnExit(GameState::Menu),
             gamemenu_node,
-            BackgroundColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
+            // BackgroundColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
             Children::spawn(SpawnIter(
                 [
                     ("SHOP", MenuBtn::Shop),
@@ -84,6 +85,8 @@ mod gamemenu {
                 MENU_BTN_MARGIN,
                 MENU_BTN_RADIUS
             ),
+            BorderColor::all(MENU_BTN_OUTLINE),
+            BackgroundColor(Color::Srgba(GRAY)),
             children![(create_btn_text!(t))],
         )
     }
