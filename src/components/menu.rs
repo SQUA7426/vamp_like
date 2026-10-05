@@ -14,11 +14,12 @@ pub enum GameState {
 
 #[derive(States, Clone, Copy, Debug, Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum MenuState {
-    Shop,
-    Inventory,
     StartMenu,
     #[default]
     Menu,
+    Shop,
+    Inventory,
+    Home,
     Upgrade,
     Level,
 }
@@ -131,7 +132,7 @@ mod gamemenu {
         for (_menu_btn, mut bg_color, children) in &mut btn_query {
             let mut text_color = text_query.get_mut(children[0]).unwrap();
             *text_color = TextColor(NORMAL_TEXT);
-*bg_color = BackgroundColor(NORMAL_BG);
+            *bg_color = BackgroundColor(NORMAL_BG);
         }
         game_state.set(GameState::NonReset);
     }
@@ -171,12 +172,11 @@ mod gamemenu {
 
             if *active == MenuBtnActive::Inactive {
                 if *interaction == Interaction::Pressed {
-
                     game_state.set(GameState::ResetBtnColor);
+                    *active = MenuBtnActive::Active;
 
                     *text_color = TextColor(PRESSED_TEXT);
                     *bg_color = BackgroundColor(PRESSED_BG);
-                    *active = MenuBtnActive::Active;
                 }
                 if *interaction == Interaction::Hovered {
                     *text_color = TextColor(HOVER_TEXT);
@@ -205,21 +205,26 @@ mod gamemenu {
             (&Interaction, &MenuBtn, &mut MenuBtnActive),
             (Changed<Interaction>, With<Button>),
         >,
+        mut game_state: ResMut<NextState<GameState>>,
         mut menu_state: ResMut<NextState<MenuState>>,
     ) {
         for (interaction, btn, active) in &mut btn_query {
             if *interaction == Interaction::Pressed {
-                match (btn, *active) {
-                    (MenuBtn::Inventory, MenuBtnActive::Active) => {
-                        menu_state.set(MenuState::Inventory);
+                [
+                    (MenuBtn::Shop, MenuState::Shop),
+                    (MenuBtn::Inventory, MenuState::Inventory),
+                    (MenuBtn::Home, MenuState::Home),
+                    (MenuBtn::Upgrade, MenuState::Upgrade),
+                    (MenuBtn::Level, MenuState::Level),
+                ]
+                .into_iter()
+                .for_each(|(b, a)| {
+                    if *btn == b && *active == MenuBtnActive::Active {
+                        game_state.set(GameState::ResetBtn);
+                        game_state.set(GameState::ResetBtnColor);
+                        menu_state.set(a);
                     }
-                    (MenuBtn::Inventory, MenuBtnActive::Inactive) => {
-                        menu_state.set(MenuState::default());
-                    }
-                    _ => {
-                        menu_state.reset();
-                    }
-                }
+                });
             }
 
             if *interaction == Interaction::Hovered {
@@ -236,7 +241,10 @@ mod gamemenu {
 }
 
 mod inventorymenu {
-    use bevy::{color::palettes::css::{DARK_GREY, LIGHT_GREY}, prelude::*};
+    use bevy::{
+        color::palettes::css::{DARK_GREY, LIGHT_GREY},
+        prelude::*,
+    };
 
     use crate::{components::menu::MenuState, create_node};
 
@@ -257,25 +265,24 @@ mod inventorymenu {
             // BackgroundColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
             BackgroundColor(Color::from(LIGHT_GREY)),
             Children::spawn(SpawnIter(
-                    [
+                [
                     (25.0, 68.0, 5.0, Some(88.0), 7.0, 7.0),
                     (15.0, 78.0, 15.0, Some(78.0), 7.0, 7.0),
                     (15.0, 78.0, 25.0, Some(68.0), 7.0, 7.0),
                     (25.0, 68.0, 35.0, Some(58.0), 7.0, 7.0),
-
                     (68.0, 25.0, 5.0, Some(88.0), 7.0, 7.0),
                     (78.0, 15.0, 15.0, Some(78.0), 7.0, 7.0),
                     (78.0, 15.0, 25.0, Some(68.0), 7.0, 7.0),
                     (68.0, 25.0, 35.0, Some(58.0), 7.0, 7.0),
-                    ]
-                    .into_iter()
-                    .map(|(l,r,t,b,w,h)|{
-                        (
-                            create_node!(l,r,t,b,w,h),
-                            Button,
-                            BackgroundColor(Color::from(DARK_GREY)),
-                        )
-                    })
+                ]
+                .into_iter()
+                .map(|(l, r, t, b, w, h)| {
+                    (
+                        create_node!(l, r, t, b, w, h),
+                        Button,
+                        BackgroundColor(Color::from(DARK_GREY)),
+                    )
+                }),
             )),
         ));
     }
