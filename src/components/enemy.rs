@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::color::palettes::css::CRIMSON;
+use crate::components::menu::GameState;
 use crate::components::size::Size;
 
 #[allow(unused)]
@@ -36,8 +37,8 @@ pub struct EnemyPlugin;
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, setup_enemy_resources)
-            .add_systems(Update, spawn_enemies);
+            .add_systems(OnEnter(GameState::Playing), setup_enemy_resources)
+            .add_systems(Update, spawn_enemies.run_if(in_state(GameState::Playing)));
     }
 }
 

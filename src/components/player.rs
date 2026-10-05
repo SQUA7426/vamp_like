@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::color::palettes::css::BLUE_VIOLET;
 
+use crate::components::menu::GameState;
 use crate::components::size::Size;
 #[allow(unused)]
 #[derive(Component, Debug)]
@@ -29,8 +30,8 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, player_setup)
-            .add_systems(Update, control_player);
+        app.add_systems(OnEnter(GameState::Playing), player_setup)
+            .add_systems(Update, control_player.run_if(in_state(GameState::Playing)));
     }
 }
 
