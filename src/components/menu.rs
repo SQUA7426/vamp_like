@@ -60,7 +60,7 @@ mod gamemenu {
     use crate::{
         components::menu::{
             GameState, MENU_BTN_HEIGHT, MENU_BTN_MARGIN, MENU_BTN_OUTLINE, MENU_BTN_RADIUS,
-            MENU_BTN_WIDTH, MenuState, ResetState
+            MENU_BTN_WIDTH, MenuState, ResetState,
         },
         create_btn, create_btn_text, create_node,
     };
@@ -297,9 +297,7 @@ mod home {
         const TWENTY: f32 = 20.0;
         (
             Button,
-            create_btn!(
-                H, H, Z, TWENTY
-            ),
+            create_btn!(H, H, Z, TWENTY),
             // BorderColor::all(MENU_BTN_OUTLINE),
             BackgroundColor(NORMAL_BG),
             children![(create_btn_text!(t))],
@@ -350,10 +348,7 @@ mod home {
                 .map(|(btn, text, l, r, t, b, w, h)| {
                     (
                         create_node!(l, r, t, b, w, h),
-                        children![(
-                            button(String::from(text)),
-                            btn
-                        )],
+                        children![(button(String::from(text)), btn)],
                     )
                 }),
             )),
@@ -393,11 +388,11 @@ mod home {
         mut menu_state: ResMut<NextState<MenuState>>,
     ) {
         for (interaction, btn) in &mut btn_query {
-            if *interaction == Interaction::Pressed {
-                if let HomeBtn::Play = btn {
-                    game_state.set(GameState::Playing);
-                    menu_state.set(MenuState::Inactive);
-                }
+            if *interaction == Interaction::Pressed
+                && let HomeBtn::Play = btn
+            {
+                game_state.set(GameState::Playing);
+                menu_state.set(MenuState::Inactive);
             }
 
             if *interaction == Interaction::Hovered {
