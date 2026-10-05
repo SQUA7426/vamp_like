@@ -360,6 +360,7 @@ mod home {
         ));
     }
 
+    #[allow(clippy::type_complexity)]
     fn playing_system(
         mut btn_query: Query<
             (&Interaction, &mut BackgroundColor, &HomeBtn, &Children),
@@ -393,12 +394,9 @@ mod home {
     ) {
         for (interaction, btn) in &mut btn_query {
             if *interaction == Interaction::Pressed {
-                match btn {
-                    HomeBtn::Play => {
-                        game_state.set(GameState::Playing);
-                        menu_state.set(MenuState::Inactive);
-                    }
-                    _ => {}
+                if let HomeBtn::Play = btn {
+                    game_state.set(GameState::Playing);
+                    menu_state.set(MenuState::Inactive);
                 }
             }
 
