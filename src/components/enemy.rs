@@ -1,3 +1,4 @@
+use bevy::math::ops::sqrt;
 use bevy::prelude::*;
 use bevy::color::palettes::css::CRIMSON;
 use crate::components::menu::GameState;
@@ -44,13 +45,13 @@ impl Plugin for EnemyPlugin {
         app
             .add_systems(OnEnter(GameState::Playing), setup_enemy_resources)
             .add_systems(Update, spawn_enemies.run_if(in_state(GameState::Playing)))
-            .add_systems(Update, chase_player.run_if(in_state(GameState::Playing)));
+            .add_systems(Update, (chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)));
     }
 }
 
 fn setup_enemy_resources(mut cmds: Commands) {
-    cmds.insert_resource(EnemyDecayRate(1.0));
-    cmds.insert_resource(EnemyMaxCount(1));
+    cmds.insert_resource(EnemyDecayRate(2.0));
+    cmds.insert_resource(EnemyMaxCount(10));
     cmds.insert_resource(EnemySpawnTimer(Timer::from_seconds(2.5, TimerMode::Repeating)));
 }
 
@@ -69,7 +70,7 @@ fn spawn_enemies(
         return;
     }
 
-    if (enemies.iter().len() as i32) > max_enemies.0 {
+    if (enemies.iter().len() as i32) == max_enemies.0 {
         return
     }
     let enemy = Enemy::new(10.0);
@@ -85,24 +86,49 @@ fn spawn_enemies(
 fn chase_player(
     enemy_query: Option<Query<(&Enemy, &mut Transform)>>,
     player: Single<&Transform, (With<Player>, Without<Enemy>)>,
-    enemy_decay_rate: Option<Res<EnemyDecayRate>>,
     time: Res<Time>,
 ) {
     let Some(mut enemy_query) =  enemy_query else { return };
-    let Some(enemy_decay_rate) = enemy_decay_rate else { return };
 
     let player_transform = player.into_inner();
 
     for (enemy, mut enemy_transform) in &mut enemy_query {
-        let delta_time = time.delta_secs();
 
         let diff_translation = player_transform.translation - enemy_transform.translation;
 
-        let movement = diff_translation * enemy.speed;
+        let movement_delta = diff_translation.normalize_or_zero() * enemy.speed * time.delta_secs();
 
-        enemy_transform.translation.smooth_nudge(&movement, enemy_decay_rate.0, delta_time);
+        enemy_transform.translation += movement_delta;
     }
+}
 
+fn despawn_on_player_pos(
+    mut cmds: Commands,
+    enemy_query: Option<Query<(Entity, &Enemy, &Transform)>>,
+    player: Single<(&Player, &Transform)>,
+) {
+    let Some(mut enemy_query) =  enemy_query else { return };
+
+    let (player, player_transform) = player.into_inner();
+
+    for (entity, _enemy, enemy_transform) in &mut enemy_query {
+        if enemy_near_player(enemy_transform.translation, player_transform.translation) {
+            println!("Deleting Enemy...");
+            cmds.entity(entity).despawn();
+        }
+    }
+}
+
+fn enemy_near_player(enemy_pos: Vec3, player_pos: Vec3) -> bool {
+    let e_x = enemy_pos.x;
+    let e_y = enemy_pos.y;
+    let e_radius = 15.0;
+    let p_x = player_pos.x;
+    let p_y = player_pos.y;
+    let p_radius = 24.0;
+
+    let distance: f32 = sqrt((e_x-p_x).powi(2) + (e_y-p_y).powi(2));
+    distance >= f32::abs(e_radius-p_radius) && distance <= e_radius + p_radius
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ pub struct Player {
     health: f32,
     speed: f32,
     size: Size,
-    pos: Vec2,
+    pub pos: Vec2,
 }
 
 impl Player {
