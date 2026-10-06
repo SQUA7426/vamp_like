@@ -14,5 +14,13 @@ jobs:
           rustup toolchain install nightly --component miri
           rustup override set nightly
           cargo miri setup
+
+      - name: Install Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libasound2-dev libudev-dev xvfb
+
       - name: Test with Miri
         run: cargo miri test
