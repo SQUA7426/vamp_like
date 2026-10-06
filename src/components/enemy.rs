@@ -105,11 +105,11 @@ fn chase_player(
 fn despawn_on_player_pos(
     mut cmds: Commands,
     enemy_query: Option<Query<(Entity, &Enemy, &Transform)>>,
-    player: Single<(&Player, &Transform)>,
+    player: Single<&Transform, With<Player>>,
 ) {
     let Some(mut enemy_query) =  enemy_query else { return };
 
-    let (player, player_transform) = player.into_inner();
+    let player_transform = player.into_inner();
 
     for (entity, _enemy, enemy_transform) in &mut enemy_query {
         if enemy_near_player(enemy_transform.translation, player_transform.translation) {
@@ -134,6 +134,7 @@ fn enemy_near_player(enemy_pos: Vec3, player_pos: Vec3) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Player;
 
     #[test]
     fn setup_single_enemy() {
@@ -143,5 +144,17 @@ mod tests {
         assert_eq!(enemy.health, 10.0);
         assert_eq!(enemy.size, Size::Normal);
         assert_eq!(enemy.pos, Vec2::ZERO);
+    }
+
+    #[test]
+    fn test_enemy_near_player() {
+        let enemy = Enemy::new(10.0);
+        let enemy_pos = enemy.pos.extend(0.0);
+
+        let player = Player::new("Anton".to_string());
+        let mut player_pos = player.pos.extend(0.0);
+        player_pos += Vec3 {x: 20.0, y: 50.0, z: 0.0};
+
+        assert_eq!(enemy_near_player(enemy_pos, player_pos), false);
     }
 }

@@ -14,7 +14,7 @@ pub struct Player {
 }
 
 impl Player {
-    fn new(player_name: String) -> Self {
+    pub fn new(player_name: String) -> Self {
         Self {
             name: player_name,
             speed: 100.0,
