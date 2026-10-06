@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4](https://github.com/SQUA7426/vamp_like/compare/v0.3.3...v0.3.4) - 2026-10-06
+
+### Fixed
+
+- made enemy despawn near player and made 1 enemy test
+- made enemy chasing player with constant speed and only spawn as many as max_enemy resource has as limit
+
+### Removed
+
+- removed github.ref from release-plz.yml
+
 ## [0.3.3](https://github.com/SQUA7426/vamp_like/compare/v0.3.2...v0.3.3) - 2026-10-06
 
 ### Fixed
