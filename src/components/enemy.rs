@@ -1,6 +1,9 @@
+use std::f32::consts::PI;
+
 use bevy::math::ops::sqrt;
 use bevy::prelude::*;
 use bevy::color::palettes::css::CRIMSON;
+use rand::random;
 use crate::components::menu::GameState;
 use crate::components::player::Player;
 use crate::components::size::Size;
@@ -35,6 +38,16 @@ impl Enemy {
             pos: Vec2::ZERO,
         }
     }
+
+    fn spawnpoint(&self,player_pos: Vec3) -> Vec2 {
+        let r = 400.0;
+        let theta: f32 = random::<f32>() * 2.0 * PI;
+
+        let x = player_pos.x + r * f32::cos(theta);
+        let y = player_pos.y + r * f32::sin(theta);
+
+        Vec2 { x: x, y: y }
+    }
 }
 
 #[derive(Debug)]
@@ -61,10 +74,12 @@ fn spawn_enemies(
     max_enemies: Res<EnemyMaxCount>,
     mut enemy_timer: ResMut<EnemySpawnTimer>,
     time: Res<Time>,
+    player: Single<&Transform, With<Player>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>
 ) {
     let Some(enemies) = enemy_query else { return };
+    let player_pos = player.into_inner();
 
     if !enemy_timer.0.tick(time.delta()).just_finished() {
         return;
@@ -74,11 +89,12 @@ fn spawn_enemies(
         return
     }
     let enemy = Enemy::new(10.0);
+    let spawn_pt = enemy.spawnpoint(player_pos.translation);
 
     cmds.spawn((
             Mesh2d(meshes.add(Circle::new(15.0))),
             MeshMaterial2d(materials.add(Color::from(CRIMSON))),
-            Transform::from_xyz(enemy.pos.x, enemy.pos.y, 100.0),
+            Transform::from_xyz(spawn_pt.x, spawn_pt.y, 100.0),
             enemy,
     ));
 }
@@ -156,5 +172,19 @@ mod tests {
         player_pos += Vec3 {x: 20.0, y: 50.0, z: 0.0};
 
         assert_eq!(enemy_near_player(enemy_pos, player_pos), false);
+    }
+
+    #[test]
+    fn enemy_spawn_pt() {
+        let enemy = Enemy::new(10.0);
+
+        let player = Player::new("Anton".to_string());
+        let player_pos = player.pos.extend(0.0);
+        let spawn_pt = enemy.spawnpoint(player_pos);
+        fn type_of<T>(_: &T) -> &str { 
+            std::any::type_name::<T>()
+         }
+
+        assert_eq!(type_of(&spawn_pt), "glam::f32::vec2::Vec2");
     }
 }
