@@ -68,6 +68,7 @@ fn setup_enemy_resources(mut cmds: Commands) {
     cmds.insert_resource(EnemySpawnTimer(Timer::from_seconds(2.5, TimerMode::Repeating)));
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_enemies(
     mut cmds: Commands,
     enemy_query: Option<Query<&Enemy>>,
