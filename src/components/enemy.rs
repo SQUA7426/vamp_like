@@ -43,10 +43,10 @@ impl Enemy {
         let r = 400.0;
         let theta: f32 = random::<f32>() * 2.0 * PI;
 
-        let x = player_pos.x + r * f32::cos(theta);
-        let y = player_pos.y + r * f32::sin(theta);
+        let e_x = player_pos.x + r * f32::cos(theta);
+        let e_y = player_pos.y + r * f32::sin(theta);
 
-        Vec2 { x: x, y: y }
+        Vec2 { x: e_x, y: e_y }
     }
 }
 
