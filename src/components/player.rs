@@ -3,25 +3,41 @@ use bevy::color::palettes::css::BLUE_VIOLET;
 
 use crate::components::menu::GameState;
 use crate::components::size::Size;
+use crate::traits::character::Character;
+
 #[allow(unused)]
 #[derive(Component, Debug)]
 pub struct Player {
     name: String,
-    health: f32,
+    attack: f32,
+    sp_attack: f32,
+    attack_speed: f32,
+    defense: f32,
+    sp_defense: f32,
     speed: f32,
+    health: f32,
     size: Size,
-    pub pos: Vec2,
+    pub pos: Vec3,
 }
 
-impl Player {
-    pub fn new(player_name: String) -> Self {
+impl Character for Player {
+    fn new(char_name: String, hp: f32) -> Self {
         Self {
-            name: player_name,
+            name: char_name,
+            attack: 5.0,
+            sp_attack: 5.0,
+            attack_speed: 5.0,
+            defense: 5.0,
+            sp_defense: 5.0,
             speed: 100.0,
-            health: 100.0,
+            health: hp,
             size: Size::default(),
-            pos: Vec2::ZERO,
+            pos: Vec3::ZERO,
         }
+    }
+
+    fn spawnpoint(&self, player_pos: Vec3) -> Vec3 {
+        player_pos
     }
 }
 
@@ -40,11 +56,11 @@ fn player_setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>
 ) {
-    let player = Player::new("Anton".to_string());
+    let player = Player::new("Anton".to_string(), 100.0);
     cmds.spawn((
             Mesh2d(meshes.add(Circle::new(24.0))),
             MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
-            Transform::from_xyz(player.pos.x, player.pos.y, 100.0),
+            Transform::from_translation(player.spawnpoint(player.pos)),
             player,
     ));
 }
@@ -86,12 +102,17 @@ mod tests {
 
     #[test]
     fn setup_player() {
-        let player = Player::new("Anton".to_string());
+        let player = Player::new("Anton".to_string(), 100.0);
 
         assert_eq!(player.name, "Anton".to_string());
+        assert_eq!(player.attack, 5.0);
+        assert_eq!(player.sp_attack, 5.0);
+        assert_eq!(player.attack_speed, 5.0);
+        assert_eq!(player.defense, 5.0);
+        assert_eq!(player.sp_defense, 5.0);
         assert_eq!(player.speed, 100.0);
         assert_eq!(player.health, 100.0);
         assert_eq!(player.size, Size::Normal);
-        assert_eq!(player.pos, Vec2::ZERO);
+        assert_eq!(player.pos, Vec3::ZERO);
     }
 }
