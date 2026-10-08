@@ -147,16 +147,17 @@ fn chase_player(
 fn despawn_on_player_pos(
     mut cmds: Commands,
     enemy_query: Option<Query<(Entity, &Enemy, &Transform)>>,
-    player: Single<&Transform, With<Player>>,
+    player: Single<(&Transform, &mut Player)>,
 ) {
     let Some(mut enemy_query) = enemy_query else {
         return;
     };
 
-    let player_transform = player.into_inner();
+    let (player_transform, mut player) = player.into_inner();
 
-    for (entity, _enemy, enemy_transform) in &mut enemy_query {
+    for (entity, enemy, enemy_transform) in &mut enemy_query {
         if enemy_near_player(enemy_transform.translation, player_transform.translation) {
+            player.health -= enemy.health;
             println!("Deleting Enemy...");
             cmds.entity(entity).despawn();
         }

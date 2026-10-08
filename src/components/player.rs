@@ -5,8 +5,11 @@ use crate::components::menu::GameState;
 use crate::components::size::Size;
 use crate::traits::character::Character;
 
-#[allow(unused)]
 #[derive(Component, Debug)]
+pub struct PlayerHealthText;
+
+#[allow(unused)]
+#[derive(Component, Debug, Clone)]
 pub struct Player {
     name: String,
     attack: f32,
@@ -15,7 +18,8 @@ pub struct Player {
     defense: f32,
     sp_defense: f32,
     speed: f32,
-    health: f32,
+    pub health: f32,
+    pub max_health: f32,
     size: Size,
     pub pos: Vec3,
     pub rot: f32,
@@ -32,9 +36,10 @@ impl Character for Player {
             sp_defense: 5.0,
             speed: 100.0,
             health: hp,
+            max_health: hp,
             size: Size::default(),
             pos: Vec3::new(0.0, 0.0, 100.0),
-            rot: 0.0
+            rot: 0.0,
         }
     }
 
@@ -51,7 +56,10 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Playing), player_setup)
-            .add_systems(Update, control_player.run_if(in_state(GameState::Playing)));
+            .add_systems(
+                Update,
+                (control_player, update_health_text).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 
@@ -62,7 +70,7 @@ fn player_setup(
 ) {
     let player = Player::new("Anton".to_string(), 100.0);
 
-    let player_pos = player.spawnpoint(player.pos).clone();
+    let player_pos = player.spawnpoint(player.pos);
 
     let radius: f32 = 8.0;
     let len: f32 = 28.0;
@@ -74,23 +82,34 @@ fn player_setup(
         Mesh2d(meshes.add(Circle::new(24.0))),
         MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
         Transform::from_translation(player_pos),
-        player,
+        player.clone(),
     ))
     .with_children(|parent| {
         parent.spawn((
             Mesh2d(meshes.add(Capsule2d::new(radius, len))),
             MeshMaterial2d(materials.add(Color::from(DARK_SLATE_GRAY))),
-            transforming
+            transforming,
         ));
     });
+
+    cmds.spawn((
+        Text2d::new(String::from(format!(
+            "{:?}/{:?}",
+            player.health, player.max_health
+        ))),
+        Transform::from_translation(player_pos + vec3(0.0, 25.0, 100.0)),
+        PlayerHealthText,
+    ));
 }
 
 fn control_player(
     input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Player, &mut Transform)>,
+    player: Single<(&mut Player, &mut Transform), Without<PlayerHealthText>>,
+    text: Single<(&PlayerHealthText, &mut Transform), Without<Player>>,
     time: Res<Time>,
 ) {
     let (mut player, mut transform) = player.into_inner();
+    let (_health_text, mut text_transform) = text.into_inner();
 
     let mut direction = Vec2::ZERO;
 
@@ -118,10 +137,23 @@ fn control_player(
 
     let movement_delta = direction.normalize_or_zero() * player.speed * time.delta_secs();
     transform.translation += movement_delta.extend(0.0);
+    text_transform.translation += movement_delta.extend(0.0);
 
     transform.rotate_z(rot - player.rot);
 
     player.rot = rot;
+}
+
+fn update_health_text(
+    mut cmds: Commands,
+    player: Single<&mut Player>,
+    text: Single<(Entity, &PlayerHealthText), Without<Player>>,
+) {
+    let (entity, _text) = text.into_inner();
+    cmds.entity(entity).insert(Text2d::new(String::from(format!(
+        "{:?}/{:?}",
+        player.health, player.max_health
+    ))));
 }
 
 #[cfg(test)]
@@ -140,6 +172,7 @@ mod tests {
         assert_eq!(player.sp_defense, 5.0);
         assert_eq!(player.speed, 100.0);
         assert_eq!(player.health, 100.0);
+        assert_eq!(player.max_health, 100.0);
         assert_eq!(player.size, Size::Normal);
         assert_eq!(player.pos, Vec3::new(0.0, 0.0, 100.0));
     }
