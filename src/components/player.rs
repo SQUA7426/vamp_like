@@ -1,5 +1,5 @@
+use bevy::color::palettes::css::{BLUE_VIOLET, DARK_SLATE_GRAY};
 use bevy::prelude::*;
-use bevy::color::palettes::css::BLUE_VIOLET;
 
 use crate::components::menu::GameState;
 use crate::components::size::Size;
@@ -18,6 +18,7 @@ pub struct Player {
     health: f32,
     size: Size,
     pub pos: Vec3,
+    pub rot: f32,
 }
 
 impl Character for Player {
@@ -32,13 +33,16 @@ impl Character for Player {
             speed: 100.0,
             health: hp,
             size: Size::default(),
-            pos: Vec3::ZERO,
+            pos: Vec3::new(0.0, 0.0, 100.0),
+            rot: 0.0
         }
     }
 
     fn spawnpoint(&self, player_pos: Vec3) -> Vec3 {
         player_pos
     }
+
+    fn attack(&self) {}
 }
 
 #[derive(Debug)]
@@ -54,47 +58,71 @@ impl Plugin for PlayerPlugin {
 fn player_setup(
     mut cmds: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let player = Player::new("Anton".to_string(), 100.0);
-    cmds.spawn((
-            Mesh2d(meshes.add(Circle::new(24.0))),
-            MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
-            Transform::from_translation(player.spawnpoint(player.pos)),
-            player,
-    ));
-}
 
+    let player_pos = player.spawnpoint(player.pos).clone();
+
+    let radius: f32 = 8.0;
+    let len: f32 = 28.0;
+
+    let mut transforming = Transform::from_translation(player_pos + vec3(30.0, -15.0, 0.0));
+    transforming.rotation = Quat::from_rotation_z(f32::to_radians(-45.0));
+
+    cmds.spawn((
+        Mesh2d(meshes.add(Circle::new(24.0))),
+        MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
+        Transform::from_translation(player_pos),
+        player,
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            Mesh2d(meshes.add(Capsule2d::new(radius, len))),
+            MeshMaterial2d(materials.add(Color::from(DARK_SLATE_GRAY))),
+            transforming
+        ));
+    });
+}
 
 fn control_player(
     input: Res<ButtonInput<KeyCode>>,
     player: Single<(&mut Player, &mut Transform)>,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
-    let (player, mut transform) = player.into_inner();
+    let (mut player, mut transform) = player.into_inner();
 
     let mut direction = Vec2::ZERO;
 
+    let mut rot = player.rot;
+
     if input.pressed(KeyCode::KeyS) {
         direction.y -= 1.;
+        rot = 180.0;
     }
 
     if input.pressed(KeyCode::KeyW) {
         direction.y += 1.;
+        rot = 0.0;
     }
 
     if input.pressed(KeyCode::KeyA) {
         direction.x -= 1.;
+        rot = 90.0;
     }
 
     if input.pressed(KeyCode::KeyD) {
         direction.x += 1.;
+        rot = -90.0;
     }
 
     let movement_delta = direction.normalize_or_zero() * player.speed * time.delta_secs();
-    transform.translation += movement_delta.extend(0.);
-}
+    transform.translation += movement_delta.extend(0.0);
 
+    transform.rotate_z(rot - player.rot);
+
+    player.rot = rot;
+}
 
 #[cfg(test)]
 mod tests {
@@ -113,6 +141,6 @@ mod tests {
         assert_eq!(player.speed, 100.0);
         assert_eq!(player.health, 100.0);
         assert_eq!(player.size, Size::Normal);
-        assert_eq!(player.pos, Vec3::ZERO);
+        assert_eq!(player.pos, Vec3::new(0.0, 0.0, 100.0));
     }
 }

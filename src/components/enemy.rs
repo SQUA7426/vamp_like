@@ -9,11 +9,9 @@ use bevy::math::ops::sqrt;
 use bevy::prelude::*;
 use rand::random;
 
-#[allow(unused)]
 #[derive(Resource, Debug)]
 pub struct EnemyMaxCount(i32);
 
-#[allow(unused)]
 #[derive(Resource, Debug)]
 pub struct EnemySpawnTimer(Timer);
 
@@ -54,6 +52,9 @@ impl Character for Enemy {
             y: e_y,
             z: 0.0,
         }
+    }
+
+    fn attack(&self) {
     }
 }
 
