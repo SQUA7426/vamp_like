@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5](https://github.com/SQUA7426/vamp_like/compare/v0.3.4...v0.3.5) - 2026-10-08
+
+### Changed
+
+- changed miri's chronicle time test
+
+### Fixed
+
+- spawn_enemies()
+- spawnpoint()
+- make enemies spawn at given distance
+
+### Other
+
+- increased the version from v.0.3.4 -> v.0.3.5
+- added PlayingDecayRate for the play-speed; set it to 2x for testing purpose
+- added a very simple health and damage dealing system
+- added player rotate with <wasd> and added a dummy-stick
+- added character trait and shortend enemy spawn function
+
 ## [0.3.4](https://github.com/SQUA7426/vamp_like/compare/v0.3.3...v0.3.4) - 2026-10-06
 
 ### Fixed
