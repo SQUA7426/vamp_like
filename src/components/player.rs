@@ -1,9 +1,14 @@
 use bevy::color::palettes::css::{BLUE_VIOLET, DARK_SLATE_GRAY};
 use bevy::prelude::*;
 
-use crate::components::menu::GameState;
-use crate::components::size::Size;
-use crate::traits::character::Character;
+use crate::{
+    components::{
+        level::PlayingDecayRate,
+        menu::{GameState, MenuState},
+        size::Size,
+    },
+    traits::character::Character,
+};
 
 #[derive(Component, Debug)]
 pub struct PlayerHealthText;
@@ -59,7 +64,8 @@ impl Plugin for PlayerPlugin {
             .add_systems(
                 Update,
                 (control_player, update_health_text).run_if(in_state(GameState::Playing)),
-            );
+            )
+            .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
     }
 }
 
@@ -79,6 +85,7 @@ fn player_setup(
     transforming.rotation = Quat::from_rotation_z(f32::to_radians(-45.0));
 
     cmds.spawn((
+        DespawnOnExit(GameState::Playing),
         Mesh2d(meshes.add(Circle::new(24.0))),
         MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
         Transform::from_translation(player_pos),
@@ -93,10 +100,8 @@ fn player_setup(
     });
 
     cmds.spawn((
-        Text2d::new(String::from(format!(
-            "{:?}/{:?}",
-            player.health, player.max_health
-        ))),
+        DespawnOnExit(GameState::Playing),
+        Text2d::new(format!("{:?}/{:?}", player.health, player.max_health)),
         Transform::from_translation(player_pos + vec3(0.0, 25.0, 100.0)),
         PlayerHealthText,
     ));
@@ -106,10 +111,12 @@ fn control_player(
     input: Res<ButtonInput<KeyCode>>,
     player: Single<(&mut Player, &mut Transform), Without<PlayerHealthText>>,
     text: Single<(&PlayerHealthText, &mut Transform), Without<Player>>,
+    playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
     let (mut player, mut transform) = player.into_inner();
     let (_health_text, mut text_transform) = text.into_inner();
+    let decay_rate = playing_decay_rate.into_inner();
 
     let mut direction = Vec2::ZERO;
 
@@ -135,7 +142,8 @@ fn control_player(
         rot = -90.0;
     }
 
-    let movement_delta = direction.normalize_or_zero() * player.speed * time.delta_secs();
+    let movement_delta =
+        direction.normalize_or_zero() * player.speed * time.delta_secs() * decay_rate.rate;
     transform.translation += movement_delta.extend(0.0);
     text_transform.translation += movement_delta.extend(0.0);
 
@@ -150,10 +158,23 @@ fn update_health_text(
     text: Single<(Entity, &PlayerHealthText), Without<Player>>,
 ) {
     let (entity, _text) = text.into_inner();
-    cmds.entity(entity).insert(Text2d::new(String::from(format!(
+    cmds.entity(entity).insert(Text2d::new(format!(
         "{:?}/{:?}",
         player.health, player.max_health
-    ))));
+    )));
+}
+
+fn player_died(
+    player: Single<&mut Player>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+) {
+    let player = player.into_inner();
+
+    if player.health <= 0.0 {
+        game_state.set(GameState::Menu);
+        menu_state.set(MenuState::Home);
+    }
 }
 
 #[cfg(test)]

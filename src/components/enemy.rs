@@ -1,12 +1,15 @@
 use std::f32::consts::PI;
 
-use crate::components::menu::GameState;
-use crate::components::player::Player;
-use crate::components::size::Size;
-use crate::traits::character::Character;
-use bevy::color::palettes::css::CRIMSON;
-use bevy::math::ops::sqrt;
-use bevy::prelude::*;
+use crate::{
+    components::{
+        level::{PlayingDecayRate, setup_level_ui},
+        menu::GameState,
+        player::Player,
+        size::Size,
+    },
+    traits::character::Character,
+};
+use bevy::{color::palettes::css::CRIMSON, math::ops::sqrt, prelude::*};
 use rand::random;
 
 #[derive(Resource, Debug)]
@@ -14,10 +17,6 @@ pub struct EnemyMaxCount(i32);
 
 #[derive(Resource, Debug)]
 pub struct EnemySpawnTimer(Timer);
-
-#[allow(unused)]
-#[derive(Resource, Debug)]
-pub struct EnemyDecayRate(f32);
 
 #[allow(unused)]
 #[derive(Component, Debug)]
@@ -54,8 +53,7 @@ impl Character for Enemy {
         }
     }
 
-    fn attack(&self) {
-    }
+    fn attack(&self) {}
 }
 
 #[derive(Debug)]
@@ -63,20 +61,28 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), setup_enemy_resources)
-            .add_systems(Update, (enemy_can_spawn, spawn_enemies).chain().run_if(in_state(GameState::Playing)))
-            .add_systems(
-                Update,
-                (chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)),
-            );
+        app.add_systems(
+            OnEnter(GameState::Playing),
+            setup_enemy_resources.after(setup_level_ui),
+        )
+        .add_systems(
+            Update,
+            (enemy_can_spawn, spawn_enemies)
+                .chain()
+                .run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
+            (chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)),
+        );
     }
 }
 
-fn setup_enemy_resources(mut cmds: Commands) {
-    cmds.insert_resource(EnemyDecayRate(2.0));
+fn setup_enemy_resources(mut cmds: Commands, playing_decay_rate: Res<PlayingDecayRate>) {
     cmds.insert_resource(EnemyMaxCount(10));
+    let decay_rate = playing_decay_rate.into_inner();
     cmds.insert_resource(EnemySpawnTimer(Timer::from_seconds(
-        2.5,
+        2.5 / decay_rate.rate,
         TimerMode::Repeating,
     )));
 }
@@ -88,7 +94,9 @@ fn enemy_can_spawn(
 ) {
     let Some(enemies) = enemy_query else { return };
 
-    let Some(max_enemies) = max_enemies else { return };
+    let Some(max_enemies) = max_enemies else {
+        return;
+    };
 
     if (enemies.iter().len() as i32) == max_enemies.0 {
         cmds.remove_resource::<EnemyMaxCount>();
@@ -110,13 +118,16 @@ fn spawn_enemies(
         return;
     }
 
-    let Some(_max_enemies) = max_enemies else { return };
+    let Some(_max_enemies) = max_enemies else {
+        return;
+    };
 
     let player_pos = player.into_inner();
     let enemy = Enemy::new("Dummy".to_string(), 10.0);
     let spawn_pt = enemy.spawnpoint(player_pos.translation);
 
     cmds.spawn((
+        DespawnOnExit(GameState::Playing),
         Mesh2d(meshes.add(Circle::new(15.0))),
         MeshMaterial2d(materials.add(Color::from(CRIMSON))),
         Transform::from_xyz(spawn_pt.x, spawn_pt.y, 100.0),
@@ -127,6 +138,7 @@ fn spawn_enemies(
 fn chase_player(
     enemy_query: Option<Query<(&Enemy, &mut Transform)>>,
     player: Single<&Transform, (With<Player>, Without<Enemy>)>,
+    playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
     let Some(mut enemy_query) = enemy_query else {
@@ -134,11 +146,15 @@ fn chase_player(
     };
 
     let player_transform = player.into_inner();
+    let decay_rate = playing_decay_rate.into_inner();
 
     for (enemy, mut enemy_transform) in &mut enemy_query {
         let diff_translation = player_transform.translation - enemy_transform.translation;
 
-        let movement_delta = diff_translation.normalize_or_zero() * enemy.speed * time.delta_secs();
+        let movement_delta = diff_translation.normalize_or_zero()
+            * enemy.speed
+            * time.delta_secs()
+            * decay_rate.rate;
 
         enemy_transform.translation += movement_delta;
     }
