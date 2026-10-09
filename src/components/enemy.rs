@@ -21,21 +21,25 @@ pub struct EnemySpawnTimer(Timer);
 #[allow(unused)]
 #[derive(Component, Debug)]
 pub struct Enemy {
-    name: String,
+    pub name: String,
     speed: f32,
-    health: f32,
+    pub health: f32,
+    max_health: f32,
     size: Size,
     pos: Vec2,
+    pub drop_exp: f32,
 }
 
 impl Character for Enemy {
     fn new(char_name: String, hp: f32) -> Self {
         Self {
             name: char_name,
-            speed: 110.0,
+            speed: 70.0,
             health: hp,
+            max_health: hp,
             size: Size::default(),
             pos: Vec2::ZERO,
+            drop_exp: 2.5
         }
     }
 
@@ -52,8 +56,6 @@ impl Character for Enemy {
             z: 0.0,
         }
     }
-
-    fn attack(&self) {}
 }
 
 #[derive(Debug)]
@@ -73,7 +75,7 @@ impl Plugin for EnemyPlugin {
         )
         .add_systems(
             Update,
-            (chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)),
+            (enemy_died, chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)),
         );
     }
 }
@@ -135,6 +137,22 @@ fn spawn_enemies(
     ));
 }
 
+fn enemy_died(
+    mut cmds: Commands,
+    enemy_query: Option<Query<(Entity, &Enemy)>>,
+    player: Single<&mut Player>
+) {
+    let Some(enemy_query) = enemy_query else { return };
+    let mut player = player.into_inner();
+
+    for (entity, enemy) in &enemy_query {
+        if enemy.health <= 0.0 {
+            player.exp += enemy.drop_exp;
+            cmds.entity(entity).despawn();
+        }
+    }
+}
+
 fn chase_player(
     enemy_query: Option<Query<(&Enemy, &mut Transform)>>,
     player: Single<&Transform, (With<Player>, Without<Enemy>)>,
@@ -172,21 +190,20 @@ fn despawn_on_player_pos(
     let (player_transform, mut player) = player.into_inner();
 
     for (entity, enemy, enemy_transform) in &mut enemy_query {
-        if enemy_near_player(enemy_transform.translation, player_transform.translation) {
+        if enemy_near_player(enemy_transform.translation, 15.0, player_transform.translation, 24.0) {
             player.health -= enemy.health;
+            player.exp += enemy.drop_exp;
             println!("Deleting Enemy...");
             cmds.entity(entity).despawn();
         }
     }
 }
 
-fn enemy_near_player(enemy_pos: Vec3, player_pos: Vec3) -> bool {
+pub fn enemy_near_player(enemy_pos: Vec3, e_radius: f32, player_pos: Vec3, p_radius: f32) -> bool {
     let e_x = enemy_pos.x;
     let e_y = enemy_pos.y;
-    let e_radius = 15.0;
     let p_x = player_pos.x;
     let p_y = player_pos.y;
-    let p_radius = 24.0;
 
     let distance: f32 = sqrt((e_x - p_x).powi(2) + (e_y - p_y).powi(2));
     distance >= f32::abs(e_radius - p_radius) && distance <= e_radius + p_radius
@@ -203,10 +220,13 @@ mod tests {
         let enemy = Enemy::new("Dummy".to_string(), 10.0);
 
         assert_eq!(enemy.name, String::from("Dummy"));
-        assert_eq!(enemy.speed, 110.0);
+        assert_eq!(enemy.speed, 70.0);
         assert_eq!(enemy.health, 10.0);
+        assert_eq!(enemy.max_health, 10.0);
         assert_eq!(enemy.size, Size::Normal);
         assert_eq!(enemy.pos, Vec2::ZERO);
+        assert_eq!(enemy.pos, Vec2::ZERO);
+        assert_eq!(enemy.drop_exp, 2.5);
     }
 
     #[test]
@@ -220,7 +240,7 @@ mod tests {
             z: 0.0,
         };
 
-        assert_eq!(enemy_near_player(enemy_pos, player_pos), false);
+        assert_eq!(enemy_near_player(enemy_pos, 15.0, player_pos, 24.0), false);
     }
 
     #[test]

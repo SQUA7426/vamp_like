@@ -1,6 +1,8 @@
 use bevy::color::palettes::css::{BLUE_VIOLET, DARK_SLATE_GRAY};
 use bevy::prelude::*;
 
+use crate::components::enemy::{Enemy, enemy_near_player};
+use crate::components::level::setup_level_ui;
 use crate::{
     components::{
         level::PlayingDecayRate,
@@ -13,11 +15,18 @@ use crate::{
 #[derive(Component, Debug)]
 pub struct PlayerHealthText;
 
+#[derive(Resource)]
+pub struct PlayerAttackSpeed(Timer);
+
 #[allow(unused)]
 #[derive(Component, Debug, Clone)]
 pub struct Player {
     name: String,
+    lvl: i32,
+    pub exp: f32,
+    exp_max: f32,
     attack: f32,
+    pub attack_range: f32,
     sp_attack: f32,
     attack_speed: f32,
     defense: f32,
@@ -34,9 +43,13 @@ impl Character for Player {
     fn new(char_name: String, hp: f32) -> Self {
         Self {
             name: char_name,
+            lvl: 1,
+            exp: 0.0,
+            exp_max: 10.0,
             attack: 5.0,
+            attack_range: 45.0,
             sp_attack: 5.0,
-            attack_speed: 5.0,
+            attack_speed: 0.8,
             defense: 5.0,
             sp_defense: 5.0,
             speed: 100.0,
@@ -51,8 +64,6 @@ impl Character for Player {
     fn spawnpoint(&self, player_pos: Vec3) -> Vec3 {
         player_pos
     }
-
-    fn attack(&self) {}
 }
 
 #[derive(Debug)]
@@ -60,11 +71,12 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), player_setup)
+        app.add_systems(OnEnter(GameState::Playing), player_setup.after(setup_level_ui))
             .add_systems(
                 Update,
-                (control_player, update_health_text).run_if(in_state(GameState::Playing)),
+                (attack_enemy, control_player, update_health_text).run_if(in_state(GameState::Playing)),
             )
+            .add_systems(Update, level_up.run_if(in_state(GameState::Playing)))
             .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
     }
 }
@@ -73,10 +85,12 @@ fn player_setup(
     mut cmds: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    playing_decay_rate: Res<PlayingDecayRate>,
 ) {
     let player = Player::new("Anton".to_string(), 100.0);
 
     let player_pos = player.spawnpoint(player.pos);
+    let decay_rate = playing_decay_rate.into_inner();
 
     let radius: f32 = 8.0;
     let len: f32 = 28.0;
@@ -105,6 +119,8 @@ fn player_setup(
         Transform::from_translation(player_pos + vec3(0.0, 25.0, 100.0)),
         PlayerHealthText,
     ));
+
+    cmds.insert_resource(PlayerAttackSpeed(Timer::from_seconds(player.attack_speed / decay_rate.rate, TimerMode::Repeating)));
 }
 
 fn control_player(
@@ -149,6 +165,7 @@ fn control_player(
 
     transform.rotate_z(rot - player.rot);
 
+    player.pos = transform.translation;
     player.rot = rot;
 }
 
@@ -162,6 +179,38 @@ fn update_health_text(
         "{:?}/{:?}",
         player.health, player.max_health
     )));
+}
+
+fn attack_enemy(
+    enemy_query: Option<Query<(&mut Enemy, &Transform)>>,
+    player: Single<(&mut Player, &Transform)>,
+    mut attack_speed: ResMut<PlayerAttackSpeed>,
+    time: Res<Time>,
+) {
+    let Some(mut enemy_query) = enemy_query else { return };
+    let (player, player_transform) = player.into_inner();
+
+    if !attack_speed.0.tick(time.delta()).just_finished() {
+        return;
+    }
+
+    // println!("PlayerAttackSpeed finished");
+
+    for (mut enemy, enemy_transform) in &mut enemy_query {
+        if enemy_near_player(enemy_transform.translation, 15.0, player_transform.translation, player.attack_range) {
+            println!("{:?} near player!", enemy.name);
+            enemy.health -= player.attack;
+        }
+    }
+}
+
+fn level_up(player: Single<&mut Player>) {
+    let mut player = player.into_inner();
+
+    if player.exp >= player.exp_max {
+        player.exp -= player.exp_max;
+        player.lvl += 1;
+    }
 }
 
 fn player_died(
@@ -186,9 +235,13 @@ mod tests {
         let player = Player::new("Anton".to_string(), 100.0);
 
         assert_eq!(player.name, "Anton".to_string());
+        assert_eq!(player.lvl, 1);
+        assert_eq!(player.exp, 0.0);
+        assert_eq!(player.exp_max, 10.0);
         assert_eq!(player.attack, 5.0);
+        assert_eq!(player.attack_range, 45.0);
         assert_eq!(player.sp_attack, 5.0);
-        assert_eq!(player.attack_speed, 5.0);
+        assert_eq!(player.attack_speed, 0.8);
         assert_eq!(player.defense, 5.0);
         assert_eq!(player.sp_defense, 5.0);
         assert_eq!(player.speed, 100.0);
