@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/SQUA7426/vamp_like/compare/v0.3.5...v0.4.0) - 2026-10-09
+
+### Other
+
+- added a simple player-attack, exp and level system
+- release v0.3.5
+
 ## [0.3.5](https://github.com/SQUA7426/vamp_like/compare/v0.3.4...v0.3.5) - 2026-10-08
 
 ### Changed
