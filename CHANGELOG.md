@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/SQUA7426/vamp_like/compare/v0.4.0...v0.4.1) - 2026-10-11
+
+### Fixed
+
+- clippy test
+
+### Other
+
+- added displaying enemy health and added displaying lvl and exp above player
+
 ## [0.4.0](https://github.com/SQUA7426/vamp_like/compare/v0.3.5...v0.4.0) - 2026-10-09
 
 ### Other
