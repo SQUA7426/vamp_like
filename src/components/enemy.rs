@@ -12,6 +12,9 @@ use crate::{
 use bevy::{color::palettes::css::CRIMSON, math::ops::sqrt, prelude::*};
 use rand::random;
 
+#[derive(Component, Debug)]
+pub struct EnemyHealthText;
+
 #[derive(Resource, Debug)]
 pub struct EnemyMaxCount(i32);
 
@@ -19,12 +22,12 @@ pub struct EnemyMaxCount(i32);
 pub struct EnemySpawnTimer(Timer);
 
 #[allow(unused)]
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct Enemy {
     pub name: String,
     speed: f32,
     pub health: f32,
-    max_health: f32,
+    pub max_health: f32,
     size: Size,
     pos: Vec2,
     pub drop_exp: f32,
@@ -39,7 +42,7 @@ impl Character for Enemy {
             max_health: hp,
             size: Size::default(),
             pos: Vec2::ZERO,
-            drop_exp: 2.5
+            drop_exp: 2.5,
         }
     }
 
@@ -67,15 +70,17 @@ impl Plugin for EnemyPlugin {
             OnEnter(GameState::Playing),
             setup_enemy_resources.after(setup_level_ui),
         )
+        .add_systems(Update, spawn_enemies.run_if(in_state(GameState::Playing)))
         .add_systems(
             Update,
-            (enemy_can_spawn, spawn_enemies)
+            (
+                update_health,
+                enemy_died,
+                chase_player,
+                despawn_on_player_pos,
+            )
                 .chain()
                 .run_if(in_state(GameState::Playing)),
-        )
-        .add_systems(
-            Update,
-            (enemy_died, chase_player, despawn_on_player_pos).run_if(in_state(GameState::Playing)),
         );
     }
 }
@@ -89,30 +94,12 @@ fn setup_enemy_resources(mut cmds: Commands, playing_decay_rate: Res<PlayingDeca
     )));
 }
 
-fn enemy_can_spawn(
-    mut cmds: Commands,
-    enemy_query: Option<Query<&Enemy>>,
-    max_enemies: Option<Res<EnemyMaxCount>>,
-) {
-    let Some(enemies) = enemy_query else { return };
-
-    let Some(max_enemies) = max_enemies else {
-        return;
-    };
-
-    if (enemies.iter().len() as i32) == max_enemies.0 {
-        cmds.remove_resource::<EnemyMaxCount>();
-    } else {
-        cmds.insert_resource(EnemyMaxCount(10));
-    }
-}
-
 fn spawn_enemies(
     mut cmds: Commands,
     mut enemy_timer: ResMut<EnemySpawnTimer>,
     time: Res<Time>,
-    player: Single<&Transform, With<Player>>,
-    max_enemies: Option<Res<EnemyMaxCount>>,
+    mut components_set: ParamSet<(Option<Query<&Enemy>>, Single<&Transform, With<Player>>)>,
+    max_enemies: Res<EnemyMaxCount>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -120,11 +107,18 @@ fn spawn_enemies(
         return;
     }
 
-    let Some(_max_enemies) = max_enemies else {
+    let player_pos = components_set.p1().into_inner().clone();
+
+    let enemy_query = components_set.p0();
+
+    let Some(enemy_query) = enemy_query else {
         return;
     };
 
-    let player_pos = player.into_inner();
+    if enemy_query.into_iter().len() as i32 == max_enemies.0 {
+        return;
+    }
+
     let enemy = Enemy::new("Dummy".to_string(), 10.0);
     let spawn_pt = enemy.spawnpoint(player_pos.translation);
 
@@ -133,16 +127,49 @@ fn spawn_enemies(
         Mesh2d(meshes.add(Circle::new(15.0))),
         MeshMaterial2d(materials.add(Color::from(CRIMSON))),
         Transform::from_xyz(spawn_pt.x, spawn_pt.y, 100.0),
-        enemy,
-    ));
+        enemy.clone(),
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            DespawnOnExit(GameState::Playing),
+            Text2d::new(format!("{:?}/{:?}", enemy.health, enemy.max_health)),
+            Transform::from_translation(vec3(0.0, 25.0, 100.0)),
+            EnemyHealthText,
+        ));
+    });
+}
+
+fn update_health(
+    mut cmds: Commands,
+    enemy_query: Option<Query<(Entity, &Enemy, &Children)>>,
+    hp_text: Option<Query<(Entity, &EnemyHealthText)>>,
+) {
+    let Some(enemy_query) = enemy_query else {
+        return;
+    };
+
+    for (_entity, enemy, child) in enemy_query {
+        for c in child.iter() {
+            let Some(mut hp_text) = hp_text else { return };
+            if let Ok((e, _eht)) = hp_text.get_mut(c) {
+                cmds.entity(e).insert(Text2d::new(format!(
+                    "{:?}/{:?}",
+                    enemy.health, enemy.max_health
+                )));
+            }
+        }
+    }
 }
 
 fn enemy_died(
     mut cmds: Commands,
     enemy_query: Option<Query<(Entity, &Enemy)>>,
-    player: Single<&mut Player>
+    player: Single<&mut Player>,
 ) {
-    let Some(enemy_query) = enemy_query else { return };
+    let Some(enemy_query) = enemy_query else {
+        return;
+    };
+
     let mut player = player.into_inner();
 
     for (entity, enemy) in &enemy_query {
@@ -154,8 +181,8 @@ fn enemy_died(
 }
 
 fn chase_player(
-    enemy_query: Option<Query<(&Enemy, &mut Transform)>>,
-    player: Single<&Transform, (With<Player>, Without<Enemy>)>,
+    enemy_query: Option<Query<(&Enemy, &mut Transform), Without<Player>>>,
+    player: Single<&Transform, With<Player>>,
     playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
@@ -164,6 +191,7 @@ fn chase_player(
     };
 
     let player_transform = player.into_inner();
+
     let decay_rate = playing_decay_rate.into_inner();
 
     for (enemy, mut enemy_transform) in &mut enemy_query {
@@ -190,7 +218,12 @@ fn despawn_on_player_pos(
     let (player_transform, mut player) = player.into_inner();
 
     for (entity, enemy, enemy_transform) in &mut enemy_query {
-        if enemy_near_player(enemy_transform.translation, 15.0, player_transform.translation, 24.0) {
+        if enemy_near_player(
+            enemy_transform.translation,
+            15.0,
+            player_transform.translation,
+            24.0,
+        ) {
             player.health -= enemy.health;
             player.exp += enemy.drop_exp;
             println!("Deleting Enemy...");

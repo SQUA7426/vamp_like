@@ -22,7 +22,7 @@ pub struct PlayerAttackSpeed(Timer);
 #[derive(Component, Debug, Clone)]
 pub struct Player {
     name: String,
-    lvl: i32,
+    pub lvl: i32,
     pub exp: f32,
     exp_max: f32,
     attack: f32,
@@ -71,13 +71,16 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), player_setup.after(setup_level_ui))
-            .add_systems(
-                Update,
-                (attack_enemy, control_player, update_health_text).run_if(in_state(GameState::Playing)),
-            )
-            .add_systems(Update, level_up.run_if(in_state(GameState::Playing)))
-            .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
+        app.add_systems(
+            OnEnter(GameState::Playing),
+            player_setup.after(setup_level_ui),
+        )
+        .add_systems(
+            Update,
+            (attack_enemy, control_player, update_health_text).run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(Update, level_up.run_if(in_state(GameState::Playing)))
+        .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
     }
 }
 
@@ -115,12 +118,18 @@ fn player_setup(
 
     cmds.spawn((
         DespawnOnExit(GameState::Playing),
-        Text2d::new(format!("{:?}/{:?}", player.health, player.max_health)),
-        Transform::from_translation(player_pos + vec3(0.0, 25.0, 100.0)),
+        Text2d::new(format!(
+            "lvl: {:?}\n{:?}/{:?}\n{:?}/{:?}",
+            player.lvl, player.exp, player.exp_max, player.health, player.max_health
+        )),
+        Transform::from_translation(player_pos + vec3(0.0, 45.0, 100.0)),
         PlayerHealthText,
     ));
 
-    cmds.insert_resource(PlayerAttackSpeed(Timer::from_seconds(player.attack_speed / decay_rate.rate, TimerMode::Repeating)));
+    cmds.insert_resource(PlayerAttackSpeed(Timer::from_seconds(
+        player.attack_speed / decay_rate.rate,
+        TimerMode::Repeating,
+    )));
 }
 
 fn control_player(
@@ -176,8 +185,8 @@ fn update_health_text(
 ) {
     let (entity, _text) = text.into_inner();
     cmds.entity(entity).insert(Text2d::new(format!(
-        "{:?}/{:?}",
-        player.health, player.max_health
+        "lvl: {:?}\n{:?}/{:?}\n{:?}/{:?}",
+        player.lvl, player.exp, player.exp_max, player.health, player.max_health
     )));
 }
 
@@ -187,19 +196,25 @@ fn attack_enemy(
     mut attack_speed: ResMut<PlayerAttackSpeed>,
     time: Res<Time>,
 ) {
-    let Some(mut enemy_query) = enemy_query else { return };
+    let Some(mut enemy_query) = enemy_query else {
+        return;
+    };
     let (player, player_transform) = player.into_inner();
 
     if !attack_speed.0.tick(time.delta()).just_finished() {
         return;
     }
 
-    // println!("PlayerAttackSpeed finished");
-
     for (mut enemy, enemy_transform) in &mut enemy_query {
-        if enemy_near_player(enemy_transform.translation, 15.0, player_transform.translation, player.attack_range) {
+        if enemy_near_player(
+            enemy_transform.translation,
+            15.0,
+            player_transform.translation,
+            player.attack_range,
+        ) {
             println!("{:?} near player!", enemy.name);
             enemy.health -= player.attack;
+            return;
         }
     }
 }
@@ -210,6 +225,7 @@ fn level_up(player: Single<&mut Player>) {
     if player.exp >= player.exp_max {
         player.exp -= player.exp_max;
         player.lvl += 1;
+        player.exp_max = player.exp_max * 1.25;
     }
 }
 
