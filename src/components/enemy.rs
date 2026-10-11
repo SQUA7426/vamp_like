@@ -94,6 +94,7 @@ fn setup_enemy_resources(mut cmds: Commands, playing_decay_rate: Res<PlayingDeca
     )));
 }
 
+#[allow(clippy::type_complexity)]
 fn spawn_enemies(
     mut cmds: Commands,
     mut enemy_timer: ResMut<EnemySpawnTimer>,
@@ -107,7 +108,7 @@ fn spawn_enemies(
         return;
     }
 
-    let player_pos = components_set.p1().into_inner().clone();
+    let player_pos = *components_set.p1().into_inner();
 
     let enemy_query = components_set.p0();
 

@@ -225,7 +225,7 @@ fn level_up(player: Single<&mut Player>) {
     if player.exp >= player.exp_max {
         player.exp -= player.exp_max;
         player.lvl += 1;
-        player.exp_max = player.exp_max * 1.25;
+        player.exp_max *= 1.25;
     }
 }
 
