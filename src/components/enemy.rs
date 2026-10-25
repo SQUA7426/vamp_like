@@ -9,7 +9,7 @@ use crate::{
     },
     traits::character::Character,
 };
-use bevy::{color::palettes::css::CRIMSON, math::ops::sqrt, prelude::*};
+use bevy::{math::ops::sqrt, prelude::*};
 use rand::random;
 
 #[derive(Component, Debug)]
