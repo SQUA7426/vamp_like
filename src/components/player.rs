@@ -1,4 +1,4 @@
-use bevy::color::palettes::css::{BLUE_VIOLET, DARK_SLATE_GRAY};
+use bevy::color::palettes::css::BLUE_VIOLET;
 use bevy::prelude::*;
 
 use crate::components::enemy::{Enemy, enemy_near_player};
@@ -89,16 +89,14 @@ fn player_setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     playing_decay_rate: Res<PlayingDecayRate>,
+    asset_server: Res<AssetServer>,
 ) {
     let player = Player::new("Anton".to_string(), 100.0);
 
     let player_pos = player.spawnpoint(player.pos);
     let decay_rate = playing_decay_rate.into_inner();
 
-    let radius: f32 = 8.0;
-    let len: f32 = 28.0;
-
-    let mut transforming = Transform::from_translation(player_pos + vec3(30.0, -15.0, 0.0));
+    let mut transforming = Transform::from_translation(player_pos + vec3(30.0, 15.0, 0.0));
     transforming.rotation = Quat::from_rotation_z(f32::to_radians(-45.0));
 
     cmds.spawn((
@@ -110,8 +108,7 @@ fn player_setup(
     ))
     .with_children(|parent| {
         parent.spawn((
-            Mesh2d(meshes.add(Capsule2d::new(radius, len))),
-            MeshMaterial2d(materials.add(Color::from(DARK_SLATE_GRAY))),
+            Sprite::from(asset_server.load("icons/heal_cross.png")),
             transforming,
         ));
     });
