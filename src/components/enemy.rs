@@ -101,8 +101,9 @@ fn spawn_enemies(
     time: Res<Time>,
     mut components_set: ParamSet<(Option<Query<&Enemy>>, Single<&Transform, With<Player>>)>,
     max_enemies: Res<EnemyMaxCount>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     if !enemy_timer.0.tick(time.delta()).just_finished() {
         return;
@@ -125,8 +126,7 @@ fn spawn_enemies(
 
     cmds.spawn((
         DespawnOnExit(GameState::Playing),
-        Mesh2d(meshes.add(Circle::new(15.0))),
-        MeshMaterial2d(materials.add(Color::from(CRIMSON))),
+        Sprite::from(asset_server.load("textures/spike_enemy.png")),
         Transform::from_xyz(spawn_pt.x, spawn_pt.y, 100.0),
         enemy.clone(),
     ))
