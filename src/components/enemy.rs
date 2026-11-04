@@ -101,8 +101,6 @@ fn spawn_enemies(
     time: Res<Time>,
     mut components_set: ParamSet<(Option<Query<&Enemy>>, Single<&Transform, With<Player>>)>,
     max_enemies: Res<EnemyMaxCount>,
-    // mut meshes: ResMut<Assets<Mesh>>,
-    // mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
     if !enemy_timer.0.tick(time.delta()).just_finished() {

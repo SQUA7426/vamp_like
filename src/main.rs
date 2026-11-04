@@ -3,7 +3,7 @@ use vamp_like::components::{cam::CamPlugin, enemy::EnemyPlugin, level::LevelPlug
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins((CamPlugin, EnemyPlugin, LevelPlugin, MenuPlugin, PlayerPlugin))
         .run();
 }

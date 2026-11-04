@@ -1,4 +1,5 @@
 pub mod components {
+    pub mod animation;
     pub mod cam;
     pub mod enemy;
     pub mod level;
@@ -17,7 +18,7 @@ pub mod util {
 }
 
 #[allow(unused_imports)]
-use components::{cam::*, enemy::*, level::*, menu::*, player::*, size::*};
+use components::{animation::*, cam::*, enemy::*, level::*, menu::*, player::*, size::*};
 
 #[allow(unused_imports)]
 use traits::character::*;

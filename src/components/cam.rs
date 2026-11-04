@@ -17,12 +17,28 @@ impl Plugin for CamPlugin {
 
 fn setup_cam(mut cmds: Commands) {
     cmds.insert_resource(DecayRate(2.0));
+
+    // Technically OrthographicProjection::default_2d() with another zoom
+    let cam_proj = Projection::Orthographic(OrthographicProjection {
+        near: -1000.0,
+        far: 1000.0,
+        viewport_origin: vec2(0.5, 0.5),
+        scaling_mode: default(),
+        scale: 0.50, // for ZOOM
+        area: Rect {
+            min: vec2(-1.0, -1.0),
+            max: vec2(1.0, 1.0),
+        },
+    });
+
     cmds.spawn((
-            Camera2d,
-            Camera {
-                order: 1,
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            order: 1,
+            ..default()
+        },
+        Transform::from_translation(vec3(0.0, 0.0, 10.0)).looking_at(Vec3::ZERO, Vec3::Y),
+        cam_proj,
     ));
 }
 
@@ -51,11 +67,7 @@ mod tests {
     #[test]
     fn test_cam_plugin() {
         let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            CamPlugin,
-        ))
-        .update();
+        app.add_plugins((MinimalPlugins, CamPlugin)).update();
         assert!(app.is_plugin_added::<CamPlugin>());
     }
 }

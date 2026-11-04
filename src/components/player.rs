@@ -1,6 +1,6 @@
-use bevy::color::palettes::css::BLUE_VIOLET;
 use bevy::prelude::*;
 
+use crate::components::animation::{AnimationConfig, PlayerSprite};
 use crate::components::enemy::{Enemy, enemy_near_player};
 use crate::components::level::setup_level_ui;
 use crate::{
@@ -79,6 +79,8 @@ impl Plugin for PlayerPlugin {
             Update,
             (attack_enemy, control_player, update_health_text).run_if(in_state(GameState::Playing)),
         )
+        .add_systems(Update, exec_animation)
+        .add_systems(Update, trigger_sprite::<PlayerSprite>)
         .add_systems(Update, level_up.run_if(in_state(GameState::Playing)))
         .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
     }
@@ -86,32 +88,40 @@ impl Plugin for PlayerPlugin {
 
 fn player_setup(
     mut cmds: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     playing_decay_rate: Res<PlayingDecayRate>,
     asset_server: Res<AssetServer>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let player = Player::new("Anton".to_string(), 100.0);
 
     let player_pos = player.spawnpoint(player.pos);
     let decay_rate = playing_decay_rate.into_inner();
 
-    let mut transforming = Transform::from_translation(player_pos + vec3(30.0, 15.0, 0.0));
-    transforming.rotation = Quat::from_rotation_z(f32::to_radians(-45.0));
+    let mut player_transform = Transform::from_translation(player_pos);
+
+    player_transform = player_transform.with_scale(vec3(2.0, 2.0, 0.0));
+
+    let texture: Handle<Image> = asset_server.load("textures/player.png");
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 4, 2, None, None);
+
+    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+    let animation_conf = AnimationConfig::new(0, 3, 8 * decay_rate.rate as u8);
 
     cmds.spawn((
         DespawnOnExit(GameState::Playing),
-        Mesh2d(meshes.add(Circle::new(24.0))),
-        MeshMaterial2d(materials.add(Color::from(BLUE_VIOLET))),
-        Transform::from_translation(player_pos),
+        Sprite {
+            image: texture.clone(),
+            texture_atlas: Some(TextureAtlas {
+                layout: texture_atlas_layout.clone(),
+                index: animation_conf.first_sprite_idx,
+            }),
+            ..Default::default()
+        },
+        player_transform,
         player.clone(),
-    ))
-    .with_children(|parent| {
-        parent.spawn((
-            Sprite::from(asset_server.load("icons/heal_cross.png")),
-            transforming,
-        ));
-    });
+        PlayerSprite,
+        animation_conf,
+    ));
 
     cmds.spawn((
         DespawnOnExit(GameState::Playing),
@@ -131,37 +141,33 @@ fn player_setup(
 
 fn control_player(
     input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Player, &mut Transform), Without<PlayerHealthText>>,
+    player: Single<(&mut Player, &mut Transform, &mut Sprite), Without<PlayerHealthText>>,
     text: Single<(&PlayerHealthText, &mut Transform), Without<Player>>,
     playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
-    let (mut player, mut transform) = player.into_inner();
+    let (mut player, mut transform, mut sprite) = player.into_inner();
     let (_health_text, mut text_transform) = text.into_inner();
     let decay_rate = playing_decay_rate.into_inner();
 
     let mut direction = Vec2::ZERO;
 
-    let mut rot = player.rot;
-
     if input.pressed(KeyCode::KeyS) {
         direction.y -= 1.;
-        rot = 180.0;
     }
 
     if input.pressed(KeyCode::KeyW) {
         direction.y += 1.;
-        rot = 0.0;
     }
 
     if input.pressed(KeyCode::KeyA) {
         direction.x -= 1.;
-        rot = 90.0;
+        sprite.flip_x = true;
     }
 
     if input.pressed(KeyCode::KeyD) {
         direction.x += 1.;
-        rot = -90.0;
+        sprite.flip_x = false;
     }
 
     let movement_delta =
@@ -169,10 +175,7 @@ fn control_player(
     transform.translation += movement_delta.extend(0.0);
     text_transform.translation += movement_delta.extend(0.0);
 
-    transform.rotate_z(rot - player.rot);
-
     player.pos = transform.translation;
-    player.rot = rot;
 }
 
 fn update_health_text(
@@ -189,14 +192,20 @@ fn update_health_text(
 
 fn attack_enemy(
     enemy_query: Option<Query<(&mut Enemy, &Transform)>>,
-    player: Single<(&mut Player, &Transform)>,
+    player: Single<(&mut Player, &Transform, &Sprite, &mut AnimationConfig)>,
     mut attack_speed: ResMut<PlayerAttackSpeed>,
+    playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
     let Some(mut enemy_query) = enemy_query else {
         return;
     };
-    let (player, player_transform) = player.into_inner();
+    let (player, player_transform, sprite, mut animation_conf) = player.into_inner();
+
+    let decay_rate = playing_decay_rate.into_inner();
+    if sprite.texture_atlas.clone().unwrap().index == 7 {
+        *animation_conf = AnimationConfig::new(0, 3, 8 * decay_rate.rate as u8);
+    }
 
     if !attack_speed.0.tick(time.delta()).just_finished() {
         return;
@@ -210,6 +219,7 @@ fn attack_enemy(
             player.attack_range,
         ) {
             println!("{:?} near player!", enemy.name);
+            *animation_conf = AnimationConfig::new(4, 7, 8 * decay_rate.rate as u8);
             enemy.health -= player.attack;
             return;
         }
@@ -236,6 +246,38 @@ fn player_died(
     if player.health <= 0.0 {
         game_state.set(GameState::Menu);
         menu_state.set(MenuState::Home);
+    }
+}
+
+fn exec_animation(mut query: Query<(&mut AnimationConfig, &mut Sprite)>, time: Res<Time>, 
+    ) {
+    query.iter_mut().for_each(|(mut conf, mut sprite)| {
+        conf.frame_timer.tick(time.delta());
+
+        if conf.frame_timer.just_finished()
+            && let Some(atlas) = &mut sprite.texture_atlas
+        {
+            if atlas.index == conf.last_sprite_idx {
+                atlas.index = conf.first_sprite_idx;
+                conf.is_playing = true;
+            } else {
+                atlas.index += 1;
+                conf.frame_timer = AnimationConfig::timer_from_fps(conf.fps);
+            }
+        }
+    });
+}
+
+fn trigger_sprite<C: Component>(mut _query: Single<(&mut AnimationConfig, &mut Sprite), With<C>>) {
+    let (mut conf, mut sprite) = _query.into_inner();
+
+    if !conf.is_playing {
+        conf.is_playing = true;
+        conf.frame_timer.reset();
+
+        if let Some(atlas) = &mut sprite.texture_atlas {
+            atlas.index = conf.first_sprite_idx;
+        }
     }
 }
 
