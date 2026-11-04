@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/SQUA7426/vamp_like/compare/v0.4.0...v0.4.1) - 2026-11-04
+
+### Changed
+
+- changed
+
+### Fixed
+
+- fixed one redundant fps: field
+- clippy test
+
+### Other
+
+- added player-sprite, simple player-walk and -attack animation
+- added enemy-texture and changed common enemies to spike-enemies
+- added displaying enemy health and added displaying lvl and exp above player
+
+### Removed
+
+- removed unused color import
+
 ## [0.4.0](https://github.com/SQUA7426/vamp_like/compare/v0.3.5...v0.4.0) - 2026-10-09
 
 ### Other
