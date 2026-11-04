@@ -14,12 +14,12 @@ pub struct AnimationConfig {
 }
 
 impl AnimationConfig {
-    pub fn new(first: usize, last: usize, fps: u8) -> Self {
+    pub fn new(first: usize, last: usize, fps_: u8) -> Self {
         Self {
             first_sprite_idx: first,
             last_sprite_idx: last,
-            fps: fps,
-            frame_timer: Self::timer_from_fps(fps),
+            fps: fps_,
+            frame_timer: Self::timer_from_fps(fps_),
             is_playing: false,
         }
     }
