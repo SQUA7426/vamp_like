@@ -5,6 +5,8 @@ macro_rules! create_node {
             position_type: PositionType::Absolute,
             align_items: AlignItems::Center,
             align_content: AlignContent::Center,
+            justify_content: JustifyContent::Center,
+            justify_items: JustifyItems::Center,
             left: percent($l),
             right: percent($r),
             top: percent($t),

@@ -37,7 +37,7 @@ impl Character for Enemy {
     fn new(char_name: String, hp: f32) -> Self {
         Self {
             name: char_name,
-            speed: 70.0,
+            speed: 60.0,
             health: hp,
             max_health: hp,
             size: Size::default(),
@@ -97,18 +97,17 @@ fn setup_enemy_resources(mut cmds: Commands, playing_decay_rate: Res<PlayingDeca
 #[allow(clippy::type_complexity)]
 fn spawn_enemies(
     mut cmds: Commands,
-    mut enemy_timer: ResMut<EnemySpawnTimer>,
+    mut enemy_spawn_timer: ResMut<EnemySpawnTimer>,
     time: Res<Time>,
     mut components_set: ParamSet<(Option<Query<&Enemy>>, Single<&Transform, With<Player>>)>,
     max_enemies: Res<EnemyMaxCount>,
     asset_server: Res<AssetServer>,
 ) {
-    if !enemy_timer.0.tick(time.delta()).just_finished() {
+    if !enemy_spawn_timer.0.tick(time.delta()).just_finished() {
         return;
     }
 
     let player_pos = *components_set.p1().into_inner();
-
     let enemy_query = components_set.p0();
 
     let Some(enemy_query) = enemy_query else {
@@ -225,7 +224,7 @@ fn despawn_on_player_pos(
         ) {
             player.health -= enemy.health;
             player.exp += enemy.drop_exp;
-            println!("Deleting Enemy...");
+            // println!("Deleting Enemy...");
             cmds.entity(entity).despawn();
         }
     }
@@ -252,7 +251,7 @@ mod tests {
         let enemy = Enemy::new("Dummy".to_string(), 10.0);
 
         assert_eq!(enemy.name, String::from("Dummy"));
-        assert_eq!(enemy.speed, 70.0);
+        assert_eq!(enemy.speed, 60.0);
         assert_eq!(enemy.health, 10.0);
         assert_eq!(enemy.max_health, 10.0);
         assert_eq!(enemy.size, Size::Normal);

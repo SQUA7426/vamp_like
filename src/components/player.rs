@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::components::animation::{AnimationConfig, PlayerSprite};
 use crate::components::enemy::{Enemy, enemy_near_player};
-use crate::components::level::setup_level_ui;
+use crate::components::level::{UiComponent, setup_level_ui};
 use crate::{
     components::{
         level::PlayingDecayRate,
@@ -12,11 +12,16 @@ use crate::{
     traits::character::Character,
 };
 
-#[derive(Component, Debug)]
-pub struct PlayerHealthText;
-
 #[derive(Resource)]
 pub struct PlayerAttackSpeed(Timer);
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub enum PlayerState {
+    #[default]
+    Standing,
+    Running,
+    Attacking,
+}
 
 #[allow(unused)]
 #[derive(Component, Debug, Clone)]
@@ -37,6 +42,7 @@ pub struct Player {
     size: Size,
     pub pos: Vec3,
     pub rot: f32,
+    state: PlayerState,
 }
 
 impl Character for Player {
@@ -58,6 +64,7 @@ impl Character for Player {
             size: Size::default(),
             pos: Vec3::new(0.0, 0.0, 100.0),
             rot: 0.0,
+            state: PlayerState::default(),
         }
     }
 
@@ -77,7 +84,7 @@ impl Plugin for PlayerPlugin {
         )
         .add_systems(
             Update,
-            (attack_enemy, control_player, update_health_text).run_if(in_state(GameState::Playing)),
+            (attack_enemy, control_player, update_player_ui).run_if(in_state(GameState::Playing)),
         )
         .add_systems(Update, exec_animation)
         .add_systems(Update, trigger_sprite::<PlayerSprite>)
@@ -123,16 +130,6 @@ fn player_setup(
         animation_conf,
     ));
 
-    cmds.spawn((
-        DespawnOnExit(GameState::Playing),
-        Text2d::new(format!(
-            "lvl: {:?}\n{:?}/{:?}\n{:?}/{:?}",
-            player.lvl, player.exp, player.exp_max, player.health, player.max_health
-        )),
-        Transform::from_translation(player_pos + vec3(0.0, 45.0, 100.0)),
-        PlayerHealthText,
-    ));
-
     cmds.insert_resource(PlayerAttackSpeed(Timer::from_seconds(
         player.attack_speed / decay_rate.rate,
         TimerMode::Repeating,
@@ -141,13 +138,11 @@ fn player_setup(
 
 fn control_player(
     input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Player, &mut Transform, &mut Sprite), Without<PlayerHealthText>>,
-    text: Single<(&PlayerHealthText, &mut Transform), Without<Player>>,
+    player: Single<(&mut Player, &mut Transform, &mut Sprite)>,
     playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
     let (mut player, mut transform, mut sprite) = player.into_inner();
-    let (_health_text, mut text_transform) = text.into_inner();
     let decay_rate = playing_decay_rate.into_inner();
 
     let mut direction = Vec2::ZERO;
@@ -173,21 +168,26 @@ fn control_player(
     let movement_delta =
         direction.normalize_or_zero() * player.speed * time.delta_secs() * decay_rate.rate;
     transform.translation += movement_delta.extend(0.0);
-    text_transform.translation += movement_delta.extend(0.0);
 
     player.pos = transform.translation;
 }
 
-fn update_health_text(
-    mut cmds: Commands,
-    player: Single<&mut Player>,
-    text: Single<(Entity, &PlayerHealthText), Without<Player>>,
-) {
-    let (entity, _text) = text.into_inner();
-    cmds.entity(entity).insert(Text2d::new(format!(
-        "lvl: {:?}\n{:?}/{:?}\n{:?}/{:?}",
-        player.lvl, player.exp, player.exp_max, player.health, player.max_health
-    )));
+fn update_player_ui(mut ui_query: Query<(&UiComponent, &mut Text)>, player: Single<&mut Player>) {
+    let player = player.into_inner();
+    for (ui, mut txt) in &mut ui_query {
+        match *ui {
+            UiComponent::Level => {
+                *txt = Text::new(format!("lvl: {:?}", player.lvl));
+            }
+            UiComponent::HP => {
+                *txt = Text::new(format!("{:?}/{:?}", player.health, player.max_health));
+            }
+            UiComponent::Exp => {
+                *txt = Text::new(format!("{:?}/{:?}", player.exp, player.exp_max));
+            }
+            _ => {}
+        }
+    }
 }
 
 fn attack_enemy(
@@ -218,7 +218,7 @@ fn attack_enemy(
             player_transform.translation,
             player.attack_range,
         ) {
-            println!("{:?} near player!", enemy.name);
+            // println!("{:?} near player!", enemy.name);
             *animation_conf = AnimationConfig::new(4, 7, 8 * decay_rate.rate as u8);
             enemy.health -= player.attack;
             return;
@@ -249,8 +249,7 @@ fn player_died(
     }
 }
 
-fn exec_animation(mut query: Query<(&mut AnimationConfig, &mut Sprite)>, time: Res<Time>, 
-    ) {
+fn exec_animation(mut query: Query<(&mut AnimationConfig, &mut Sprite)>, time: Res<Time>) {
     query.iter_mut().for_each(|(mut conf, mut sprite)| {
         conf.frame_timer.tick(time.delta());
 
@@ -304,5 +303,6 @@ mod tests {
         assert_eq!(player.max_health, 100.0);
         assert_eq!(player.size, Size::Normal);
         assert_eq!(player.pos, Vec3::new(0.0, 0.0, 100.0));
+        assert_eq!(player.state, PlayerState::default());
     }
 }
