@@ -109,10 +109,10 @@ fn player_setup(
     player_transform = player_transform.with_scale(vec3(2.0, 2.0, 0.0));
 
     let texture: Handle<Image> = asset_server.load("textures/player.png");
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 4, 2, None, None);
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 5, 2, None, None);
 
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
-    let animation_conf = AnimationConfig::new(0, 3, 8 * decay_rate.rate as u8);
+    let animation_conf = AnimationConfig::new(1, 4, 8 * decay_rate.rate as u8);
 
     cmds.spawn((
         DespawnOnExit(GameState::Playing),
@@ -202,9 +202,11 @@ fn attack_enemy(
     };
     let (player, player_transform, sprite, mut animation_conf) = player.into_inner();
 
+    let texture_atlas = sprite.texture_atlas.clone().unwrap();
+
     let decay_rate = playing_decay_rate.into_inner();
-    if sprite.texture_atlas.clone().unwrap().index == 7 {
-        *animation_conf = AnimationConfig::new(0, 3, 8 * decay_rate.rate as u8);
+    if texture_atlas.index == 0 || texture_atlas.index == 9 {
+        *animation_conf = AnimationConfig::new(1, 4, 8 * decay_rate.rate as u8);
     }
 
     if !attack_speed.0.tick(time.delta()).just_finished() {
@@ -219,7 +221,7 @@ fn attack_enemy(
             player.attack_range,
         ) {
             // println!("{:?} near player!", enemy.name);
-            *animation_conf = AnimationConfig::new(4, 7, 8 * decay_rate.rate as u8);
+            *animation_conf = AnimationConfig::new(5, 9, 8 * decay_rate.rate as u8);
             enemy.health -= player.attack;
             return;
         }
@@ -249,14 +251,23 @@ fn player_died(
     }
 }
 
-fn exec_animation(mut query: Query<(&mut AnimationConfig, &mut Sprite)>, time: Res<Time>) {
+fn exec_animation(
+    mut query: Query<(&mut AnimationConfig, &mut Sprite)>,
+    time: Res<Time>,
+) {
     query.iter_mut().for_each(|(mut conf, mut sprite)| {
         conf.frame_timer.tick(time.delta());
 
         if conf.frame_timer.just_finished()
             && let Some(atlas) = &mut sprite.texture_atlas
         {
-            if atlas.index == conf.last_sprite_idx {
+            if atlas.index == 0 {
+                conf.first_sprite_idx = 1;
+                conf.last_sprite_idx = 4;
+                atlas.index += 1;
+                conf.is_playing = true;
+                conf.frame_timer = AnimationConfig::timer_from_fps(conf.fps);
+            } else if atlas.index == conf.last_sprite_idx {
                 atlas.index = conf.first_sprite_idx;
                 conf.is_playing = true;
             } else {
