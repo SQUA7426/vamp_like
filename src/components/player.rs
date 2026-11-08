@@ -15,12 +15,13 @@ use crate::{
 #[derive(Resource)]
 pub struct PlayerAttackSpeed(Timer);
 
-#[derive(Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Component, Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum PlayerState {
     #[default]
     Standing,
     Running,
     Attacking,
+    Damaging,
 }
 
 #[allow(unused)]
@@ -80,7 +81,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(GameState::Playing),
-            player_setup.after(setup_level_ui),
+            (player_setup, setup_healthbar).chain().after(setup_level_ui),
         )
         .add_systems(
             Update,
@@ -90,6 +91,31 @@ impl Plugin for PlayerPlugin {
         .add_systems(Update, trigger_sprite::<PlayerSprite>)
         .add_systems(Update, level_up.run_if(in_state(GameState::Playing)))
         .add_systems(Update, player_died.run_if(in_state(GameState::Playing)));
+    }
+}
+
+fn setup_healthbar(mut cmds: Commands, ui_query: Query<(Entity, &UiComponent)>, player: Single<&Player>, asset_server: Res<AssetServer>) {
+    let player = player.into_inner();
+    for (entity, ui) in ui_query {
+        match *ui {
+            UiComponent::HP => {
+                cmds.entity(entity).with_children(|parent| {
+                    parent.spawn((
+                        Node {
+                            height: percent(100.0),
+                            width: percent((player.health / player.max_health) * 100.0),
+                            justify_self: JustifySelf::Center,
+                            ..default()
+                        },
+                        ImageNode {
+                            image: asset_server.load("ui/health_bar_health.png"),
+                            ..default()
+                        },
+                    ));
+                });
+            }
+            _ => {}
+        }
     }
 }
 
@@ -128,6 +154,7 @@ fn player_setup(
         player.clone(),
         PlayerSprite,
         animation_conf,
+        PlayerState::Standing,
     ));
 
     cmds.insert_resource(PlayerAttackSpeed(Timer::from_seconds(
@@ -138,31 +165,35 @@ fn player_setup(
 
 fn control_player(
     input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Player, &mut Transform, &mut Sprite)>,
+    player: Single<(&mut Player, &mut Transform, &mut Sprite, &mut PlayerState)>,
     playing_decay_rate: Res<PlayingDecayRate>,
     time: Res<Time>,
 ) {
-    let (mut player, mut transform, mut sprite) = player.into_inner();
+    let (mut player, mut transform, mut sprite, mut player_state) = player.into_inner();
     let decay_rate = playing_decay_rate.into_inner();
 
     let mut direction = Vec2::ZERO;
 
     if input.pressed(KeyCode::KeyS) {
         direction.y -= 1.;
+        *player_state = PlayerState::Running;
     }
 
     if input.pressed(KeyCode::KeyW) {
         direction.y += 1.;
+        *player_state = PlayerState::Running;
     }
 
     if input.pressed(KeyCode::KeyA) {
         direction.x -= 1.;
         sprite.flip_x = true;
+        *player_state = PlayerState::Running;
     }
 
     if input.pressed(KeyCode::KeyD) {
         direction.x += 1.;
         sprite.flip_x = false;
+        *player_state = PlayerState::Running;
     }
 
     let movement_delta =
@@ -172,15 +203,38 @@ fn control_player(
     player.pos = transform.translation;
 }
 
-fn update_player_ui(mut ui_query: Query<(&UiComponent, &mut Text)>, player: Single<&mut Player>) {
-    let player = player.into_inner();
-    for (ui, mut txt) in &mut ui_query {
+fn update_player_ui(
+    mut cmds: Commands,
+    mut ui_query: Query<(Entity, &UiComponent, &mut Text)>,
+    player: Single<(&Player, &mut PlayerState)>,
+    asset_server: Res<AssetServer>,
+) {
+    let (player, mut player_state) = player.into_inner();
+    for (entity, ui, mut txt) in &mut ui_query {
         match *ui {
             UiComponent::Level => {
                 *txt = Text::new(format!("lvl: {:?}", player.lvl));
             }
             UiComponent::HP => {
-                *txt = Text::new(format!("{:?}/{:?}", player.health, player.max_health));
+                if *player_state == PlayerState::Damaging {
+                    *txt = Text::new(format!("{:?}/{:?}", player.health, player.max_health));
+                    cmds.entity(entity).despawn_children();
+                    let percentage = (player.health / player.max_health) * 100.0;
+                    cmds.entity(entity).with_children(|parent| {
+                        parent.spawn((
+                            Node {
+                                height: percent(100.0),
+                                width: percent(percentage),
+                                ..default()
+                            },
+                            ImageNode {
+                                image: asset_server.load("ui/health_bar_health.png"),
+                                ..default()
+                            },
+                        ));
+                    });
+                    *player_state = PlayerState::Standing;
+                }
             }
             UiComponent::Exp => {
                 *txt = Text::new(format!("{:?}/{:?}", player.exp, player.exp_max));
@@ -251,10 +305,7 @@ fn player_died(
     }
 }
 
-fn exec_animation(
-    mut query: Query<(&mut AnimationConfig, &mut Sprite)>,
-    time: Res<Time>,
-) {
+fn exec_animation(mut query: Query<(&mut AnimationConfig, &mut Sprite)>, time: Res<Time>) {
     query.iter_mut().for_each(|(mut conf, mut sprite)| {
         conf.frame_timer.tick(time.delta());
 

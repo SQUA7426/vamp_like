@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use crate::{
     components::{
-        animation::AnimationConfig, level::{PlayingDecayRate, setup_level_ui}, menu::GameState, player::Player, size::Size,
+        animation::AnimationConfig, level::{PlayingDecayRate, setup_level_ui}, menu::GameState, player::{Player, PlayerState}, size::Size,
     }, traits::character::Character,
 };
 use bevy::{math::ops::sqrt, prelude::*};
@@ -203,7 +203,7 @@ fn chase_player(
 fn despawn_on_player_pos(
     mut cmds: Commands,
     enemy_query: Option<Query<(Entity, &Enemy, &Transform)>>,
-    player: Single<(&Transform, &mut Player, &mut AnimationConfig)>,
+    player: Single<(&Transform, &mut Player, &mut AnimationConfig, &mut PlayerState)>,
     decaying: Res<PlayingDecayRate>,
 ) {
     let Some(mut enemy_query) = enemy_query else {
@@ -211,7 +211,7 @@ fn despawn_on_player_pos(
     };
 
     let decay_rate = decaying.into_inner();
-    let (player_transform, mut player, mut animation_conf) = player.into_inner();
+    let (player_transform, mut player, mut animation_conf, mut player_state) = player.into_inner();
 
     for (entity, enemy, enemy_transform) in &mut enemy_query {
         if enemy_near_player(
@@ -222,7 +222,7 @@ fn despawn_on_player_pos(
         ) {
             player.health -= enemy.health;
             player.exp += enemy.drop_exp;
-            // println!("Deleting Enemy...");
+            *player_state = PlayerState::Damaging;
             *animation_conf = AnimationConfig::new(0, 1, 8 * decay_rate.rate as u8);
             cmds.entity(entity).despawn();
         }

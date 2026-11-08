@@ -1,5 +1,5 @@
 use bevy::{
-    color::palettes::css::{WHITE, BLACK},
+    color::palettes::css::{BLACK, WHITE},
     image::{ImageArrayLayout, ImageLoaderSettings},
     prelude::*,
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
@@ -57,7 +57,7 @@ pub enum UiComponent {
     Cards,
 }
 
-pub fn setup_level_ui(mut cmds: Commands) {
+pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
     [
         (
             5.0,
@@ -126,14 +126,27 @@ pub fn setup_level_ui(mut cmds: Commands) {
             DespawnOnExit(GameState::Playing),
             create_node!(l, r, t, b, w, h),
             match ui {
-                UiComponent::HP => BackgroundColor::from(Color::srgb(0.1, 0.8, 0.1)),
+                UiComponent::HP => BackgroundColor::from(Color::srgba(0.1, 0.8, 0.1, 0.0)),
                 UiComponent::Exp => BackgroundColor::from(WHITE),
-                _ => {BackgroundColor::from(Color::srgb(0.3, 0.3, 0.4))}
+                _ => BackgroundColor::from(Color::srgb(0.3, 0.3, 0.4)),
             },
             children![(
                 ui,
                 Text::new(txt),
                 TextColor::from(BLACK),
+                Node {
+                    height: percent(150.0),
+                    width: percent(70.0),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                match ui {
+                    UiComponent::HP => ImageNode {
+                        image: asset_server.load("ui/health_bar_bar.png"),
+                        ..default()
+                    },
+                    _ => ImageNode::default(),
+                },
             )],
         ));
     });
