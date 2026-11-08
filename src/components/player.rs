@@ -81,7 +81,9 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(GameState::Playing),
-            (player_setup, setup_healthbar).chain().after(setup_level_ui),
+            (player_setup, setup_healthbar)
+                .chain()
+                .after(setup_level_ui),
         )
         .add_systems(
             Update,
@@ -94,27 +96,29 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-fn setup_healthbar(mut cmds: Commands, ui_query: Query<(Entity, &UiComponent)>, player: Single<&Player>, asset_server: Res<AssetServer>) {
+fn setup_healthbar(
+    mut cmds: Commands,
+    ui_query: Query<(Entity, &UiComponent)>,
+    player: Single<&Player>,
+    asset_server: Res<AssetServer>,
+) {
     let player = player.into_inner();
     for (entity, ui) in ui_query {
-        match *ui {
-            UiComponent::HP => {
-                cmds.entity(entity).with_children(|parent| {
-                    parent.spawn((
-                        Node {
-                            height: percent(100.0),
-                            width: percent((player.health / player.max_health) * 100.0),
-                            justify_self: JustifySelf::Center,
-                            ..default()
-                        },
-                        ImageNode {
-                            image: asset_server.load("ui/health_bar_health.png"),
-                            ..default()
-                        },
-                    ));
-                });
-            }
-            _ => {}
+        if *ui == UiComponent::HP {
+            cmds.entity(entity).with_children(|parent| {
+                parent.spawn((
+                    Node {
+                        height: percent(100.0),
+                        width: percent((player.health / player.max_health) * 100.0),
+                        justify_self: JustifySelf::Center,
+                        ..default()
+                    },
+                    ImageNode {
+                        image: asset_server.load("ui/health_bar_health.png"),
+                        ..default()
+                    },
+                ));
+            });
         }
     }
 }
