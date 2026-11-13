@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::components::animation::{AnimationConfig, PlayerSprite};
 use crate::components::enemy::{Enemy, enemy_near_player};
-use crate::components::level::{UiComponent, setup_level_ui};
+use crate::components::level::{UiComponent, UiTextComponent, setup_level_ui};
 use crate::{
     components::{
         level::PlayingDecayRate,
@@ -81,7 +81,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(GameState::Playing),
-            (player_setup, setup_healthbar)
+            (player_setup, setup_healthtext)
                 .chain()
                 .after(setup_level_ui),
         )
@@ -96,29 +96,11 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-fn setup_healthbar(
-    mut cmds: Commands,
-    ui_query: Query<(Entity, &UiComponent)>,
-    player: Single<&Player>,
-    asset_server: Res<AssetServer>,
-) {
+fn setup_healthtext(ui_query: Query<(&UiTextComponent, &mut Text)>, player: Single<&Player>) {
     let player = player.into_inner();
-    for (entity, ui) in ui_query {
-        if *ui == UiComponent::HP {
-            cmds.entity(entity).with_children(|parent| {
-                parent.spawn((
-                    Node {
-                        height: percent(100.0),
-                        width: percent((player.health / player.max_health) * 100.0),
-                        justify_self: JustifySelf::Center,
-                        ..default()
-                    },
-                    ImageNode {
-                        image: asset_server.load("ui/health_bar_health.png"),
-                        ..default()
-                    },
-                ));
-            });
+    for (ui, mut txt) in ui_query {
+        if *ui == UiTextComponent::HP {
+            *txt = Text::new(format!("{:?}/{:?}", player.health, player.max_health));
         }
     }
 }
@@ -208,42 +190,50 @@ fn control_player(
 }
 
 fn update_player_ui(
-    mut cmds: Commands,
-    mut ui_query: Query<(Entity, &UiComponent, &mut Text)>,
+    mut ui_text_query: Query<(&UiTextComponent, &mut Text)>,
+    mut ui_query: Query<(&UiComponent, &mut Node, &mut ImageNode)>,
     player: Single<(&Player, &mut PlayerState)>,
-    asset_server: Res<AssetServer>,
 ) {
     let (player, mut player_state) = player.into_inner();
-    for (entity, ui, mut txt) in &mut ui_query {
-        match *ui {
-            UiComponent::Level => {
+    for (ui_text, mut txt) in &mut ui_text_query {
+        match *ui_text {
+            UiTextComponent::Level => {
                 *txt = Text::new(format!("lvl: {:?}", player.lvl));
             }
-            UiComponent::HP => {
+            UiTextComponent::HP => {
                 if *player_state == PlayerState::Damaging {
                     *txt = Text::new(format!("{:?}/{:?}", player.health, player.max_health));
-                    cmds.entity(entity).despawn_children();
-                    let percentage = (player.health / player.max_health) * 100.0;
-                    cmds.entity(entity).with_children(|parent| {
-                        parent.spawn((
-                            Node {
-                                height: percent(100.0),
-                                width: percent(percentage),
-                                ..default()
-                            },
-                            ImageNode {
-                                image: asset_server.load("ui/health_bar_health.png"),
-                                ..default()
-                            },
-                        ));
-                    });
                     *player_state = PlayerState::Standing;
                 }
             }
-            UiComponent::Exp => {
+            UiTextComponent::Exp => {
                 *txt = Text::new(format!("{:?}/{:?}", player.exp, player.exp_max));
             }
             _ => {}
+        }
+    }
+
+    for (ui, mut node, mut image_node) in &mut ui_query {
+        if *ui == UiComponent::HP {
+            let percentage = (player.health / player.max_health) * 100.0;
+            let curr_color: Color = if percentage > 45.0 {
+                Color::srgb(0.1, 1.0, 0.0)
+            } else if percentage <= 45.0 && percentage > 25.0 {
+                Color::srgb(0.4, 0.9, 0.0)
+            } else if percentage <= 25.0 && percentage > 10.0 {
+                Color::srgb(0.7, 0.5, 0.0)
+            } else {
+                Color::srgb(0.6, 0.0, 0.0)
+            };
+            let new_image_node = image_node.clone().with_color(curr_color);
+            *image_node = new_image_node;
+            *node = Node {
+                height: percent(100.0),
+                width: percent(percentage),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            };
         }
     }
 }
@@ -278,7 +268,6 @@ fn attack_enemy(
             player_transform.translation,
             player.attack_range,
         ) {
-            // println!("{:?} near player!", enemy.name);
             *animation_conf = AnimationConfig::new(5, 9, 8 * decay_rate.rate as u8);
             enemy.health -= player.attack;
             return;

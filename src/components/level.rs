@@ -1,5 +1,5 @@
 use bevy::{
-    color::palettes::css::{BLACK, WHITE},
+    color::palettes::css::BLACK,
     image::{ImageArrayLayout, ImageLoaderSettings},
     prelude::*,
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
@@ -57,6 +57,16 @@ pub enum UiComponent {
     Cards,
 }
 
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub enum UiTextComponent {
+    Profile,
+    Pause,
+    Level,
+    HP,
+    Exp,
+    Cards,
+}
+
 pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
     [
         (
@@ -67,6 +77,7 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
             10.0,
             10.0,
             UiComponent::Profile,
+            UiTextComponent::Profile,
             "Profile",
         ), // PROF PIC
         (
@@ -77,16 +88,18 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
             10.0,
             10.0,
             UiComponent::Pause,
+            UiTextComponent::Pause,
             "Pause",
         ), // Pause
         (
-            45.0,
-            45.0,
+            42.5,
+            42.5,
             1.5,
             Some(95.5),
-            10.0,
+            15.0,
             3.0,
             UiComponent::Level,
+            UiTextComponent::Level,
             "LVL",
         ), // LVL
         (
@@ -97,7 +110,8 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
             40.0,
             5.0,
             UiComponent::HP,
-            "HP",
+            UiTextComponent::HP,
+            "100.0/100.0",
         ), // HP
         (
             30.0,
@@ -107,6 +121,7 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
             40.0,
             3.0,
             UiComponent::Exp,
+            UiTextComponent::Exp,
             "EXP",
         ), // Exp
         (
@@ -117,23 +132,20 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
             50.0,
             16.0,
             UiComponent::Cards,
+            UiTextComponent::Cards,
             "CARDS",
         ), // Cards
     ]
     .into_iter()
-    .for_each(|(l, r, t, b, w, h, ui, txt)| {
+    .for_each(|(l, r, t, b, w, h, ui, ui_text, txt)| {
         cmds.spawn((
             DespawnOnExit(GameState::Playing),
             create_node!(l, r, t, b, w, h),
             match ui {
                 UiComponent::HP => BackgroundColor::from(Color::srgba(0.1, 0.8, 0.1, 0.0)),
-                UiComponent::Exp => BackgroundColor::from(WHITE),
                 _ => BackgroundColor::from(Color::srgb(0.3, 0.3, 0.4)),
             },
             children![(
-                ui,
-                Text::new(txt),
-                TextColor::from(BLACK),
                 Node {
                     height: percent(150.0),
                     width: percent(70.0),
@@ -147,9 +159,38 @@ pub fn setup_level_ui(mut cmds: Commands, asset_server: Res<AssetServer>) {
                     },
                     _ => ImageNode::default(),
                 },
+                children![(
+                    ui,
+                    Node {
+                        height: percent(100.0),
+                        width: percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    match ui {
+                        UiComponent::HP => ImageNode {
+                            image: asset_server.load("ui/health_bar_health.png"),
+                            ..default()
+                        },
+                        _ => ImageNode::default(),
+                    },
+                    children![(
+                        ui_text,
+                        match ui {
+                            UiComponent::HP => Node {
+                                left: percent(5.0),
+                                ..default()
+                            },
+                            _ => Node { ..default() },
+                        },
+                        Text::new(txt),
+                        TextColor::from(BLACK),
+                    )],
+                )],
             )],
         ));
     });
 
-    cmds.insert_resource(PlayingDecayRate { rate: 2.0 });
+    cmds.insert_resource(PlayingDecayRate { rate: 4.0 });
 }
