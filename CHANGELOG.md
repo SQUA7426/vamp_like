@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3](https://github.com/SQUA7426/vamp_like/compare/v0.4.2...v0.4.3) - 2026-11-13
+
+### Other
+
+- centered health text inside health_bar and letting health_health color change, depending on liefe-percentage
+
 ## [0.4.1](https://github.com/SQUA7426/vamp_like/compare/v0.4.0...v0.4.1) - 2026-11-04
 
 ### Changed
